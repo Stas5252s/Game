@@ -3005,7 +3005,11 @@
         // ════════════════════════════════════════════════
         const SB_URL = 'https://ikkmoeephnhmtpcdilcx.supabase.co';
         const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlra21vZWVwaG5obXRwY2RpbGN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5OTE2NjEsImV4cCI6MjA4OTU2NzY2MX0.OK1K4o-T_thIawhmXzcK4b9lWnBMXiurWcUUvsbIRfs';
-        const sb = supabase.createClient(SB_URL, SB_KEY);
+        const sb = supabase.createClient(SB_URL, SB_KEY, {
+            auth: {
+                lock: async (name, acquireTimeout, fn) => fn(),
+            }
+        });
 
         let currentUser = null;
 

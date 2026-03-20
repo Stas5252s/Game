@@ -2844,6 +2844,7 @@
 
         function predict(dir) {
             if (G.locked) return;
+            if (!G.visible.length || !G.future.length) return;
             G.locked = true; setBtns(false);
 
             const startP = G.visible[G.visible.length - 1].c;
@@ -3255,6 +3256,10 @@
         }
 
         // Auth listener — fires once on load, once on login/logout
+        // Disable game buttons immediately — game isn't ready yet
+        document.getElementById('btn-long').disabled = true;
+        document.getElementById('btn-short').disabled = true;
+        document.getElementById('btn-skip').disabled = true;
         sb.auth.onAuthStateChange(async (event, session) => {
             const user = session?.user || null;
 

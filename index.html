@@ -3180,16 +3180,16 @@
         newSession = async function () {
             if (currentUser) {
                 const s = await sbNewSession();
-                if (!s) { console.error('Failed to create session'); return; }
+                if (!s) { console.error('sbNewSession failed'); return; }
                 sessions.unshift(s);
                 saveSessions();
                 switchSession(s.id);
             } else {
-                // local fallback
                 const id = 's' + Date.now();
-                sessions.unshift({ id, name: 'Сессия ' + (sessions.length + 1), score: 0, correct: 0, rounds: 0, streak: 0, bestStreak: 0, errors: 0, streakHistory: [], wS: 0, lS: 0, skips: 3, finished: false, createdAt: Date.now() });
+                const s = { id, name: 'Сессия ' + (sessions.length + 1), score: 0, correct: 0, rounds: 0, streak: 0, bestStreak: 0, errors: 0, streakHistory: [], wS: 0, lS: 0, skips: 3, finished: false, createdAt: Date.now() };
+                sessions.unshift(s);
                 saveSessions();
-                switchSession(sessions[0].id);
+                switchSession(s.id);
             }
         };
 
@@ -3209,45 +3209,81 @@
         const _origSyncG = syncGtoSession;
         syncGtoSession = function (s) {
             _origSyncG(s);
-            if (currentUser) sbSaveSession(s); // async, fire-and-forget
+            if (currentUser) sbSaveSession(s);
         };
 
         // ── BOOT ─────────────────────────────────────────
-        resize();
-        loadSessions(); // load from localStorage cache first
+        let gameBooted = false;
 
-        // Listen to auth state
-        sb.auth.onAuthStateChange(async (event, session) => {
-            currentUser = session?.user || null;
-            if (currentUser) {
-                hideAuthScreen();
-                setUserBar(currentUser);
-                // Sync sessions from cloud
-                await sbLoadSessions();
-                // Boot game
-                if (sessions.length === 0) {
-                    await newSession();
-                } else {
-                    const initSess = sessionById(activeSessionId) || sessions[0];
-                    activeSessionId = initSess.id;
-                    G.score = initSess.score; G.correct = initSess.correct; G.rounds = initSess.rounds;
-                    G.streak = initSess.streak; G.streakHistory = [...(initSess.streakHistory || [])];
-                    G.wS = initSess.wS || 0; G.lS = initSess.lS || 0; G.skips = initSess.skips != null ? initSess.skips : 3;
-                    G.errors = initSess.errors || 0; G.finished = initSess.finished || false;
-                    renderSidebar(); updateTopBar(G.visible[G.visible.length - 1]); updatePanel();
-                    if (G.finished) showGameOver(); else initRound();
-                }
-            } else {
-                currentUser = null;
-                setUserBar(null);
-                showAuthScreen();
+        async function bootGame() {
+            if (gameBooted) return;
+            gameBooted = true;
+
+            // Wait one frame so canvas has real pixel dimensions
+            await new Promise(r => requestAnimationFrame(r));
+            resize();
+            loadSessions();
+            await sbLoadSessions();
+
+            renderSidebar();
+            setUserBar(currentUser);
+
+            if (sessions.length === 0) {
+                await newSession();
+                return;
             }
+
+            const initSess = sessionById(activeSessionId) || sessions[0];
+            activeSessionId = initSess.id;
+            G.score = initSess.score;
+            G.correct = initSess.correct;
+            G.rounds = initSess.rounds;
+            G.streak = initSess.streak;
+            G.streakHistory = [...(initSess.streakHistory || [])];
+            G.wS = initSess.wS || 0;
+            G.lS = initSess.lS || 0;
+            G.skips = initSess.skips != null ? initSess.skips : 3;
+            G.errors = initSess.errors || 0;
+            G.finished = initSess.finished || false;
+
+            updateTopBar(G.visible[G.visible.length - 1]);
+            updatePanel();
+            renderSidebar();
+
+            if (G.finished) showGameOver();
+            else initRound();
+        }
+
+        // Auth listener — fires once on load, once on login/logout
+        sb.auth.onAuthStateChange(async (event, session) => {
+            const user = session?.user || null;
+
+            if (user && !currentUser) {
+                // Just logged in
+                currentUser = user;
+                hideAuthScreen();
+                await bootGame();
+            } else if (!user && currentUser) {
+                // Just logged out
+                currentUser = null;
+                gameBooted = false;
+                showAuthScreen();
+            } else if (user && currentUser && event === 'SIGNED_IN') {
+                // Already booted, ignore
+            }
+            currentUser = user;
         });
 
-        // Check existing session immediately (avoids flicker)
+        // Initial check — show auth or boot
         (async () => {
             const { data: { session } } = await sb.auth.getSession();
-            if (!session) showAuthScreen();
+            if (session?.user) {
+                currentUser = session.user;
+                hideAuthScreen();
+                await bootGame();
+            } else {
+                showAuthScreen();
+            }
         })();
     </script>
 </body>

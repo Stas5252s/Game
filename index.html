@@ -1,0 +1,3252 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predict</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0c0c0e;
+            --surface: #111115;
+            --panel: #16161b;
+            --border: #222228;
+            --border2: #2e2e38;
+            --g: #00c076;
+            --r: #ff3b5c;
+            --g-dim: rgba(0, 192, 118, .1);
+            --r-dim: rgba(255, 59, 92, .1);
+            --txt: #e2e2e8;
+            --txt2: #7a7a8c;
+            --txt3: #3c3c4a;
+            --accent: #4e8eff;
+            --accent-dim: rgba(78, 142, 255, .15);
+            --sidebar: 200px;
+        }
+
+        html,
+        body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--txt);
+            font-family: 'Geist Mono', 'Courier New', monospace;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ── AUTH SCREEN ── */
+        .auth-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+        }
+
+        .auth-screen.hidden {
+            display: none;
+        }
+
+        .auth-box {
+            width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .auth-logo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .auth-logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #f7931a, #ffb347);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .auth-logo-name {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: .04em;
+            color: var(--txt);
+        }
+
+        .auth-logo-sub {
+            font-size: 10px;
+            color: var(--txt3);
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+
+        .auth-tabs {
+            display: flex;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 9px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            border: none;
+            cursor: pointer;
+            background: transparent;
+            color: var(--txt3);
+            transition: all .15s;
+        }
+
+        .auth-tab.active {
+            background: var(--panel);
+            color: var(--txt);
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 11px 14px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--txt);
+            font-family: inherit;
+            font-size: 12px;
+            outline: none;
+            transition: border-color .15s;
+        }
+
+        .auth-input:focus {
+            border-color: var(--accent);
+        }
+
+        .auth-input::placeholder {
+            color: var(--txt3);
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent);
+            color: #fff;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            cursor: pointer;
+            transition: opacity .15s, transform .1s;
+        }
+
+        .auth-btn:hover {
+            opacity: .88;
+        }
+
+        .auth-btn:active {
+            transform: scale(.98);
+        }
+
+        .auth-btn:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        .auth-err {
+            font-size: 10px;
+            color: var(--r);
+            text-align: center;
+            padding: 6px 10px;
+            background: var(--r-dim);
+            border-radius: 6px;
+            display: none;
+        }
+
+        .auth-err.show {
+            display: block;
+        }
+
+        .auth-ok {
+            font-size: 10px;
+            color: var(--g);
+            text-align: center;
+            padding: 6px 10px;
+            background: var(--g-dim);
+            border-radius: 6px;
+            display: none;
+        }
+
+        .auth-ok.show {
+            display: block;
+        }
+
+        /* ── TOP USER BAR (in sidebar) ── */
+        .user-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            border: 1px solid rgba(78, 142, 255, .3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+
+        .user-email {
+            font-size: 9px;
+            color: var(--txt2);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-logout {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--txt3);
+            padding: 2px;
+            transition: color .15s;
+            flex-shrink: 0;
+        }
+
+        .user-logout:hover {
+            color: var(--r);
+        }
+
+        /* ── LEADERBOARD ── */
+        .lb-veil {
+            position: fixed;
+            inset: 0;
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, .6);
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s;
+        }
+
+        .lb-veil.on {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .lb-box {
+            width: 440px;
+            max-height: 80vh;
+            background: var(--panel);
+            border: 1px solid var(--border2);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, .8);
+            animation: rPop .3s cubic-bezier(.34, 1.56, .64, 1) both;
+        }
+
+        .lb-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .lb-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .06em;
+        }
+
+        .lb-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--txt3);
+            padding: 4px;
+            transition: color .15s;
+        }
+
+        .lb-close:hover {
+            color: var(--txt);
+        }
+
+        .lb-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .lb-list::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .lb-list::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 2px;
+        }
+
+        .lb-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            margin-bottom: 2px;
+            transition: background .1s;
+        }
+
+        .lb-row:hover {
+            background: rgba(255, 255, 255, .03);
+        }
+
+        .lb-row.me {
+            background: var(--accent-dim);
+        }
+
+        .lb-rank {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--txt3);
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .lb-rank.gold {
+            color: #ffd600;
+        }
+
+        .lb-rank.silver {
+            color: #b0b0b0;
+        }
+
+        .lb-rank.bronze {
+            color: #cd7f32;
+        }
+
+        .lb-name {
+            flex: 1;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--txt);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .lb-score {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--g);
+            flex-shrink: 0;
+        }
+
+        .lb-meta {
+            font-size: 9px;
+            color: var(--txt3);
+            flex-shrink: 0;
+        }
+
+        .lb-empty {
+            padding: 32px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--txt3);
+        }
+
+        /* lb toggle in sidebar head */
+        .sb-lb-btn {
+            margin-top: 8px;
+            width: 100%;
+            padding: 7px 0;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            color: var(--txt3);
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            cursor: pointer;
+            transition: all .15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .sb-lb-btn:hover {
+            border-color: var(--accent-dim);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        /* ── LAYOUT ── */
+        .app {
+            display: grid;
+            grid-template-columns: var(--sidebar) 1fr 230px;
+            height: 100vh;
+        }
+
+        /* ══ SIDEBAR ══ */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        .sb-head {
+            padding: 14px 14px 10px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .sb-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            color: var(--txt2);
+            text-transform: uppercase;
+        }
+
+        .sb-new {
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px 0;
+            border: 1px dashed var(--border2);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--txt3);
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .06em;
+            cursor: pointer;
+            transition: all .15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .sb-new:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .sb-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px;
+        }
+
+        .sb-list::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .sb-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sb-list::-webkit-scrollbar-thumb {
+            background: var(--border2);
+            border-radius: 2px;
+        }
+
+        .sb-item {
+            padding: 10px 10px 8px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: all .12s;
+            position: relative;
+        }
+
+        .sb-item:hover {
+            background: rgba(255, 255, 255, .03);
+            border-color: var(--border);
+        }
+
+        .sb-item.active {
+            background: var(--accent-dim);
+            border-color: rgba(78, 142, 255, .3);
+        }
+
+        .sb-item-name {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--txt);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sb-item-meta {
+            font-size: 9px;
+            color: var(--txt3);
+            margin-top: 3px;
+        }
+
+        .sb-item-score {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--g);
+            float: right;
+            margin-top: -2px;
+        }
+
+        .sb-item.active .sb-item-name {
+            color: var(--accent);
+        }
+
+        .sb-del {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            opacity: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--r);
+            padding: 2px;
+            transition: opacity .15s;
+        }
+
+        .sb-item:hover .sb-del {
+            opacity: .5;
+        }
+
+        .sb-del:hover {
+            opacity: 1 !important;
+        }
+
+        /* ══ CHART SIDE ══ */
+        .chart-side {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            border-right: 1px solid var(--border);
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            height: 50px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 14px;
+        }
+
+        .sym-icon {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #f7931a, #ffb347);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .sym-name {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .04em;
+        }
+
+        .divh {
+            width: 1px;
+            height: 18px;
+            background: var(--border);
+        }
+
+        .price-main {
+            font-size: 17px;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            transition: color .2s;
+        }
+
+        .price-main.g {
+            color: var(--g);
+        }
+
+        .price-main.r {
+            color: var(--r);
+        }
+
+        .badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 4px;
+        }
+
+        .badge.g {
+            background: var(--g-dim);
+            color: var(--g);
+        }
+
+        .badge.r {
+            background: var(--r-dim);
+            color: var(--r);
+        }
+
+        .ohlc {
+            display: flex;
+            gap: 12px;
+            margin-left: auto;
+        }
+
+        .ohlc-item {
+            display: flex;
+            gap: 4px;
+            align-items: baseline;
+        }
+
+        .ok {
+            font-size: 9px;
+            color: var(--txt3);
+            letter-spacing: .1em;
+        }
+
+        .ov {
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .ov.hv {
+            color: var(--g);
+        }
+
+        .ov.lv {
+            color: var(--r);
+        }
+
+        .ov.xv {
+            color: var(--txt2);
+        }
+
+        /* ══ TOOLBAR ══ */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            background: transparent;
+            color: var(--txt2);
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            transition: all .12s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, .05);
+            color: var(--txt);
+            border-color: var(--border);
+        }
+
+        .tool-btn.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: rgba(78, 142, 255, .3);
+        }
+
+        .tool-btn svg {
+            flex-shrink: 0;
+        }
+
+        .tool-sep {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            margin: 0 2px;
+            flex-shrink: 0;
+        }
+
+        /* Draw dropdown */
+        .draw-wrapper {
+            position: relative;
+        }
+
+        .draw-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            background: var(--panel);
+            color: var(--txt2);
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            transition: all .12s;
+            white-space: nowrap;
+        }
+
+        .draw-toggle:hover {
+            border-color: var(--border2);
+            color: var(--txt);
+        }
+
+        .draw-toggle.open {
+            border-color: rgba(78, 142, 255, .4);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .draw-toggle-arrow {
+            transition: transform .2s;
+            font-size: 8px;
+            opacity: .6;
+        }
+
+        .draw-toggle.open .draw-toggle-arrow {
+            transform: rotate(180deg);
+        }
+
+        .draw-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            z-index: 200;
+            background: var(--panel);
+            border: 1px solid var(--border2);
+            border-radius: 10px;
+            padding: 6px;
+            min-width: 170px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, .7);
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-6px);
+            transition: opacity .15s, transform .15s;
+        }
+
+        .draw-dropdown.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: none;
+        }
+
+        .dd-section {
+            margin-bottom: 2px;
+        }
+
+        .dd-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: .14em;
+            color: var(--txt3);
+            padding: 4px 8px 2px;
+        }
+
+        .dd-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--txt2);
+            transition: all .1s;
+            border: 1px solid transparent;
+        }
+
+        .dd-item:hover {
+            background: rgba(255, 255, 255, .05);
+            color: var(--txt);
+        }
+
+        .dd-item.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: rgba(78, 142, 255, .25);
+        }
+
+        .dd-sep {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        .dd-item.danger:hover {
+            color: var(--r);
+            background: var(--r-dim);
+        }
+
+        /* Chart */
+        .chart-wrap {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        canvas#chart {
+            position: absolute;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas#overlay {
+            position: absolute;
+            inset: 0;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ══ RIGHT PANEL ══ */
+        .right {
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .stat {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            transition: border-color .3s;
+        }
+
+        .stat-k {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: var(--txt3);
+            margin-bottom: 4px;
+        }
+
+        .stat-v {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--txt);
+            line-height: 1;
+        }
+
+        .stat-v.g {
+            color: var(--g);
+        }
+
+        .stat-v.r {
+            color: var(--r);
+        }
+
+        .history-block {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .history-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: var(--txt3);
+        }
+
+        .history-dots {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .hd {
+            width: 9px;
+            height: 9px;
+            border-radius: 2px;
+            background: var(--border);
+            transition: background .25s;
+        }
+
+        .hd.w {
+            background: var(--g);
+        }
+
+        .hd.l {
+            background: var(--r);
+        }
+
+        .hd.fresh {
+            animation: hdPop .3s cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        @keyframes hdPop {
+            from {
+                transform: scale(0);
+            }
+
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .mkt-block {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mkt-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mkt-k {
+            font-size: 10px;
+            color: var(--txt2);
+        }
+
+        .mkt-v {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--txt);
+        }
+
+        .mkt-v.g {
+            color: var(--g);
+        }
+
+        .mkt-v.r {
+            color: var(--r);
+        }
+
+        .mkt-sep {
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* Multiplier badge */
+        .mult-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--txt2);
+            transition: all .3s;
+        }
+
+        .mult-badge.active {
+            border-color: rgba(255, 214, 0, .4);
+            background: rgba(255, 214, 0, .08);
+            color: #ffd600;
+        }
+
+        .mult-badge.danger {
+            border-color: rgba(255, 59, 92, .35);
+            background: var(--r-dim);
+            color: var(--r);
+        }
+
+        .mult-val {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .btn-wrap {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px 0;
+            border-radius: 10px;
+            border: 1px solid;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background .12s, box-shadow .12s, transform .08s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity .12s;
+        }
+
+        .btn:hover:not(:disabled)::after {
+            opacity: 1;
+        }
+
+        .btn-long {
+            border-color: var(--g);
+            color: var(--g);
+        }
+
+        .btn-long::after {
+            background: var(--g-dim);
+        }
+
+        .btn-long:hover:not(:disabled) {
+            box-shadow: 0 0 24px rgba(0, 192, 118, .2);
+        }
+
+        .btn-short {
+            border-color: var(--r);
+            color: var(--r);
+        }
+
+        .btn-short::after {
+            background: var(--r-dim);
+        }
+
+        .btn-short:hover:not(:disabled) {
+            box-shadow: 0 0 24px rgba(255, 59, 92, .2);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: scale(.97);
+        }
+
+        .btn:disabled {
+            opacity: .2;
+            cursor: not-allowed;
+        }
+
+        .btn-skip {
+            border-color: var(--border2);
+            color: var(--txt3);
+            font-size: 11px;
+            padding: 10px 0;
+            letter-spacing: .08em;
+        }
+
+        .btn-skip::after {
+            background: rgba(255, 255, 255, .04);
+        }
+
+        .btn-skip:hover:not(:disabled) {
+            color: var(--txt2);
+            border-color: var(--border2);
+            box-shadow: none;
+        }
+
+        .skip-count {
+            font-size: 9px;
+            opacity: .6;
+            margin-left: 4px;
+        }
+
+        /* ══ RESULT ══ */
+        .result-veil {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .18s;
+        }
+
+        .result-veil.on {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .result-box {
+            background: var(--panel);
+            border: 1px solid var(--border2);
+            border-radius: 16px;
+            padding: 28px 48px;
+            text-align: center;
+            box-shadow: 0 32px 96px rgba(0, 0, 0, .8);
+            animation: rPop .32s cubic-bezier(.34, 1.56, .64, 1) both;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        @keyframes rPop {
+            from {
+                opacity: 0;
+                transform: scale(.75) translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .r-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+        }
+
+        .r-icon.wi {
+            background: var(--g-dim);
+        }
+
+        .r-icon.li {
+            background: var(--r-dim);
+        }
+
+        .r-label {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: .06em;
+        }
+
+        .r-label.wt {
+            color: var(--g);
+        }
+
+        .r-label.lt {
+            color: var(--r);
+        }
+
+        .r-detail {
+            font-size: 11px;
+            color: var(--txt2);
+            line-height: 1.6;
+        }
+
+        .r-pts {
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+
+        .r-pts.pos {
+            color: var(--g);
+        }
+
+        .r-pts.neg {
+            color: var(--r);
+        }
+
+        .r-streak {
+            margin-top: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: none;
+            background: rgba(255, 214, 0, .1);
+            color: #ffd600;
+        }
+
+        .r-streak.show {
+            display: block;
+        }
+
+        .sb-item.sb-finished {
+            opacity: .55;
+        }
+
+        .sb-item-fin {
+            font-size: 8px;
+            color: var(--g);
+            letter-spacing: .1em;
+            margin-top: 2px;
+            font-weight: 700;
+        }
+
+        .sb-item-hp {
+            line-height: 1.2;
+        }
+
+        /* cursor */
+        .chart-wrap.cursor-crosshair canvas#overlay {
+            cursor: crosshair;
+        }
+
+        .chart-wrap.cursor-default canvas#overlay {
+            cursor: default;
+        }
+
+        /* errors bar */
+        .errors-bar {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .err-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            transition: background .3s;
+        }
+
+        .err-dot.used {
+            background: var(--r);
+        }
+
+        .err-dot.left {
+            background: var(--border2);
+        }
+
+        /* game over */
+        .go-veil {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 400;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .25s;
+            background: rgba(0, 0, 0, .6);
+        }
+
+        .go-veil.on {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .go-box {
+            background: var(--panel);
+            border: 1px solid var(--border2);
+            border-radius: 20px;
+            padding: 36px 52px;
+            text-align: center;
+            box-shadow: 0 32px 100px rgba(0, 0, 0, .9);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            animation: rPop .35s cubic-bezier(.34, 1.56, .64, 1) both;
+        }
+
+        .go-icon {
+            font-size: 40px;
+            margin-bottom: 4px;
+        }
+
+        .go-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--txt);
+            letter-spacing: .04em;
+        }
+
+        .go-icon {
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .go-sub {
+            font-size: 11px;
+            color: var(--txt2);
+        }
+
+        .go-stats {
+            display: flex;
+            gap: 24px;
+            margin: 8px 0;
+        }
+
+        .go-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .go-stat-v {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--txt);
+        }
+
+        .go-stat-k {
+            font-size: 9px;
+            color: var(--txt3);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+        }
+
+        .go-new {
+            margin-top: 4px;
+            padding: 12px 28px;
+            border-radius: 10px;
+            border: 1px solid var(--g);
+            background: transparent;
+            color: var(--g);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .go-new:hover {
+            background: var(--g-dim);
+            box-shadow: 0 0 20px rgba(0, 192, 118, .2);
+        }
+
+        /* ══ MOBILE ══ */
+        @media(max-width:900px) {
+            :root {
+                --sidebar: 0px;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .app {
+                grid-template-columns: 1fr 220px;
+            }
+        }
+
+        @media(max-width:640px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+
+            .chart-side {
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .ohlc {
+                display: none;
+            }
+
+            .right {
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 10px 12px;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .stat-row {
+                flex: 1;
+                gap: 6px;
+            }
+
+            .stat {
+                padding: 8px 10px;
+            }
+
+            .stat-v {
+                font-size: 16px;
+            }
+
+            .history-block,
+            .mkt-block,
+            .mult-badge {
+                display: none;
+            }
+
+            .btn-wrap {
+                flex-direction: row;
+                margin-top: 0;
+                gap: 8px;
+                flex-shrink: 0;
+            }
+
+            .btn {
+                padding: 12px 18px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ══ AUTH SCREEN ══ -->
+    <div class="auth-screen" id="auth-screen">
+        <div class="auth-box">
+            <div class="auth-logo">
+                <div class="auth-logo-icon">₿</div>
+                <div class="auth-logo-name">CryptoPredict</div>
+                <div class="auth-logo-sub">Угадай направление рынка</div>
+            </div>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Вход</button>
+                <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Регистрация</button>
+            </div>
+            <div class="auth-form">
+                <input class="auth-input" id="auth-email" type="email" placeholder="Email" autocomplete="email" />
+                <input class="auth-input" id="auth-pass" type="password" placeholder="Пароль"
+                    autocomplete="current-password" />
+                <input class="auth-input" id="auth-name" type="text" placeholder="Имя (для лидерборда)"
+                    style="display:none;" autocomplete="username" />
+                <div class="auth-err" id="auth-err"></div>
+                <div class="auth-ok" id="auth-ok"></div>
+                <button class="auth-btn" id="auth-submit" onclick="authSubmit()">Войти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ LEADERBOARD ══ -->
+    <div class="lb-veil" id="lb-veil">
+        <div class="lb-box">
+            <div class="lb-head">
+                <span class="lb-title">Лидерборд</span>
+                <button class="lb-close" onclick="hideLb()">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8"
+                            stroke-linecap="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="lb-list" id="lb-list">
+                <div class="lb-empty">Загрузка...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app">
+
+        <!-- ══ SIDEBAR: SESSIONS ══ -->
+        <div class="sidebar">
+            <div class="sb-head">
+                <div class="sb-title">Сессии</div>
+                <button class="sb-new" onclick="newSession()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                    </svg>
+                    Новая
+                </button>
+                <button class="sb-lb-btn" onclick="showLb()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <rect x="1" y="6" width="3" height="5" rx="1" fill="currentColor" />
+                        <rect x="4.5" y="3" width="3" height="8" rx="1" fill="currentColor" />
+                        <rect x="8" y="1" width="3" height="10" rx="1" fill="currentColor" />
+                    </svg>
+                    Лидерборд
+                </button>
+            </div>
+            <div class="sb-list" id="sb-list"></div>
+            <div class="user-bar" id="user-bar" style="display:none;">
+                <div class="user-avatar" id="user-avatar">?</div>
+                <div class="user-email" id="user-email">—</div>
+                <button class="user-logout" onclick="authLogout()" title="Выйти">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path d="M5 2H3a1 1 0 00-1 1v8a1 1 0 001 1h2M9 10l3-3-3-3M12 7H5" stroke="currentColor"
+                            stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- ══ CHART ══ -->
+        <div class="chart-side">
+            <div class="topbar">
+                <div class="sym-icon">₿</div>
+                <div>
+                    <div class="sym-name">BTC / USDT</div>
+                    <div style="font-size:9px;color:var(--txt3)">1m · Sim</div>
+                </div>
+                <div class="divh"></div>
+                <span class="price-main g" id="price-main">$42,000</span>
+                <span class="badge g" id="pct-badge">+0.00%</span>
+                <div class="ohlc">
+                    <div class="ohlc-item"><span class="ok">O</span><span class="ov xv" id="o-val">—</span></div>
+                    <div class="ohlc-item"><span class="ok">H</span><span class="ov hv" id="h-val">—</span></div>
+                    <div class="ohlc-item"><span class="ok">L</span><span class="ov lv" id="l-val">—</span></div>
+                    <div class="ohlc-item"><span class="ok">C</span><span class="ov xv" id="c-val">—</span></div>
+                </div>
+            </div>
+
+            <!-- toolbar -->
+            <div class="toolbar">
+                <!-- cursor -->
+                <button class="tool-btn active" data-tool="none" title="Курсор">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                        <path d="M2 2l4 10 1.5-4.5L12 6z" fill="currentColor" />
+                    </svg>
+                </button>
+
+                <div class="tool-sep"></div>
+
+                <!-- Draw dropdown toggle -->
+                <div class="draw-wrapper">
+                    <button class="draw-toggle" id="draw-toggle" onclick="toggleDrawMenu()">
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                            <path d="M2 10.5l1.5-4L9 1l3 3-5.5 5.5L2 10.5z" stroke="currentColor" stroke-width="1.3"
+                                stroke-linejoin="round" fill="none" />
+                            <line x1="7.5" y1="2.5" x2="10.5" y2="5.5" stroke="currentColor" stroke-width="1.3" />
+                        </svg>
+                        Рисование
+                        <span class="draw-toggle-arrow">▼</span>
+                    </button>
+
+                    <div class="draw-dropdown" id="draw-dropdown">
+                        <div class="dd-label">Линии</div>
+                        <div class="dd-item" data-tool="hline">
+                            <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+                                <line x1="1" y1="5" x2="13" y2="5" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <circle cx="1" cy="5" r="1.5" fill="currentColor" />
+                                <circle cx="13" cy="5" r="1.5" fill="currentColor" />
+                            </svg>
+                            Горизонтальная
+                        </div>
+                        <div class="dd-item" data-tool="vline">
+                            <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+                                <line x1="5" y1="1" x2="5" y2="13" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <circle cx="5" cy="1" r="1.5" fill="currentColor" />
+                                <circle cx="5" cy="13" r="1.5" fill="currentColor" />
+                            </svg>
+                            Вертикальная
+                        </div>
+                        <div class="dd-item" data-tool="trendline">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <line x1="1" y1="11" x2="13" y2="3" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <circle cx="1" cy="11" r="1.5" fill="currentColor" />
+                                <circle cx="13" cy="3" r="1.5" fill="currentColor" />
+                            </svg>
+                            Линия тренда
+                        </div>
+                        <div class="dd-item" data-tool="ray">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <line x1="1" y1="10" x2="12" y2="2" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <polygon points="12,2 9,2.5 11.5,5" fill="currentColor" />
+                            </svg>
+                            Луч
+                        </div>
+                        <div class="dd-sep"></div>
+                        <div class="dd-label">Fibonacci</div>
+                        <div class="dd-item" data-tool="fib">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <line x1="1" y1="2" x2="13" y2="2" stroke="currentColor" stroke-width="1"
+                                    opacity=".5" />
+                                <line x1="1" y1="5.2" x2="13" y2="5.2" stroke="currentColor" stroke-width="1.2" />
+                                <line x1="1" y1="7" x2="13" y2="7" stroke="currentColor" stroke-width="1.4" />
+                                <line x1="1" y1="8.8" x2="13" y2="8.8" stroke="currentColor" stroke-width="1.2" />
+                                <line x1="1" y1="12" x2="13" y2="12" stroke="currentColor" stroke-width="1"
+                                    opacity=".5" />
+                            </svg>
+                            Fib Retracement
+                        </div>
+                        <div class="dd-item" data-tool="fibfan">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <line x1="1" y1="13" x2="13" y2="1" stroke="currentColor" stroke-width="1.2" />
+                                <line x1="1" y1="13" x2="13" y2="4" stroke="currentColor" stroke-width="1.2" />
+                                <line x1="1" y1="13" x2="13" y2="7" stroke="currentColor" stroke-width="1.2" />
+                                <circle cx="1" cy="13" r="1.5" fill="currentColor" />
+                            </svg>
+                            Fib Fan
+                        </div>
+                        <div class="dd-sep"></div>
+                        <div class="dd-label">Фигуры</div>
+                        <div class="dd-item" data-tool="rect">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <rect x="2" y="3" width="10" height="8" rx="1" stroke="currentColor" stroke-width="1.5"
+                                    fill="none" />
+                            </svg>
+                            Прямоугольник
+                        </div>
+                        <div class="dd-item" data-tool="channel">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <line x1="1" y1="4" x2="13" y2="1" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <line x1="1" y1="9" x2="13" y2="6" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" stroke-dasharray="2 1.5" />
+                            </svg>
+                            Параллельный канал
+                        </div>
+                        <div class="dd-item" data-tool="pitchfork">
+                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <line x1="2" y1="12" x2="9" y2="4" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <line x1="9" y1="4" x2="5" y2="1" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                                <line x1="9" y1="4" x2="13" y2="1" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                            </svg>
+                            Andrew's Pitchfork
+                        </div>
+                        <div class="dd-sep"></div>
+                        <div class="dd-item danger" onclick="undoDraw()">
+                            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                                <path d="M2 4h5a3 3 0 110 6H4" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                                <polyline points="2,1.5 2,4 4.5,4" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                            </svg>
+                            Отменить
+                        </div>
+                        <div class="dd-item danger" onclick="clearDrawings()">
+                            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                                <path d="M2 3h9M5 3V2h3v1M10 3l-.7 8H3.7L3 3" stroke="currentColor" stroke-width="1.5"
+                                    stroke-linecap="round" />
+                            </svg>
+                            Очистить всё
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tool-sep"></div>
+                <!-- Current active tool label -->
+                <span id="active-tool-label" style="font-size:10px;color:var(--txt3);"></span>
+            </div>
+
+            <div class="chart-wrap cursor-default" id="chart-wrap">
+                <canvas id="chart"></canvas>
+                <canvas id="overlay"></canvas>
+            </div>
+        </div>
+
+        <!-- ══ RIGHT PANEL ══ -->
+        <div class="right">
+            <div class="stat-row">
+                <div class="stat">
+                    <div class="stat-k">Score</div>
+                    <div class="stat-v" id="s-score">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-k">Верно</div>
+                    <div class="stat-v g" id="s-acc">—</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-k">Раундов</div>
+                    <div class="stat-v" id="s-rounds">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-k">Серия</div>
+                    <div class="stat-v g" id="s-streak">0</div>
+                </div>
+            </div>
+
+            <!-- streak multiplier -->
+            <div class="mult-badge" id="mult-badge">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M6 1l1.2 3.6H11L8.1 6.9l1.1 3.5L6 8.2l-3.2 2.2 1.1-3.5L1 4.6h3.8z" fill="currentColor" />
+                </svg>
+                <span>Множитель</span>
+                <span class="mult-val" id="mult-val">×1</span>
+            </div>
+
+            <div class="history-block">
+                <div class="history-label">История</div>
+                <div class="history-dots" id="history-dots"></div>
+            </div>
+            <div class="history-block">
+                <div class="history-label">Жизни</div>
+                <div class="errors-bar" id="errors-bar"></div>
+            </div>
+            <div class="mkt-block">
+                <div class="mkt-row"><span class="mkt-k">Режим</span><span class="mkt-v" id="m-mode">—</span></div>
+                <div class="mkt-sep"></div>
+                <div class="mkt-row"><span class="mkt-k">Волатильность</span><span class="mkt-v" id="m-vol">—</span>
+                </div>
+                <div class="mkt-sep"></div>
+                <div class="mkt-row"><span class="mkt-k">Импульс</span><span class="mkt-v" id="m-mom">—</span></div>
+            </div>
+            <div class="btn-wrap">
+                <button class="btn btn-long" id="btn-long" onclick="predict('up')">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                        <path d="M6.5 1.5L11.5 7.5H8.5V12H4.5V7.5H1.5Z" fill="currentColor" />
+                    </svg>
+                    Long
+                </button>
+                <button class="btn btn-short" id="btn-short" onclick="predict('down')">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                        <path d="M6.5 11.5L1.5 5.5H4.5V1H8.5V5.5H11.5Z" fill="currentColor" />
+                    </svg>
+                    Short
+                </button>
+                <button class="btn btn-skip" id="btn-skip" onclick="skipRound()">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 2l5 4-5 4V2z" fill="currentColor" />
+                        <rect x="9" y="2" width="1.5" height="8" rx=".75" fill="currentColor" />
+                    </svg>
+                    Пропустить<span class="skip-count" id="skip-count">(3)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="go-veil" id="gameover-veil">
+        <div class="go-box">
+            <div class="go-icon">
+                <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+                    <circle cx="22" cy="22" r="20" stroke="var(--r)" stroke-width="1.5" fill="rgba(255,59,92,.08)" />
+                    <path d="M15 20a7 7 0 1114 0v2h-3v3h-2v-3h-2v3h-2v-3h-3v-2z" fill="var(--r)" opacity=".8" />
+                    <rect x="17" y="30" width="3" height="2" rx="1" fill="var(--r)" opacity=".6" />
+                    <rect x="24" y="30" width="3" height="2" rx="1" fill="var(--r)" opacity=".6" />
+                </svg>
+            </div>
+            <div class="go-title">СЕССИЯ ЗАВЕРШЕНА</div>
+            <div class="go-sub">Закончились жизни</div>
+            <div class="go-stats">
+                <div class="go-stat">
+                    <div class="go-stat-v" id="go-score">0</div>
+                    <div class="go-stat-k">Очков</div>
+                </div>
+                <div class="go-stat">
+                    <div class="go-stat-v" id="go-rounds">0</div>
+                    <div class="go-stat-k">Раундов</div>
+                </div>
+                <div class="go-stat">
+                    <div class="go-stat-v" id="go-acc">—</div>
+                    <div class="go-stat-k">Точность</div>
+                </div>
+            </div>
+            <button class="go-new" onclick="hideGameOver();newSession()">Новая сессия →</button>
+        </div>
+    </div>
+
+    <div class="result-veil" id="result-veil">
+        <div class="result-box">
+            <div class="r-icon wi" id="r-icon"><svg id="r-svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none"></svg></div>
+            <div class="r-label wt" id="r-label">WIN</div>
+            <div class="r-pts pos" id="r-pts"></div>
+            <div class="r-detail" id="r-detail"></div>
+            <div class="r-streak" id="r-streak"></div>
+        </div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // ════════════════════════════════════════════════
+        //  MARKET ENGINE v2 — multi-layer simulation
+        //
+        //  Layers:
+        //   1. Macro regime     — slow structural trend (100–300 ticks)
+        //   2. Micro regime     — short-term momentum   (15–60 ticks)
+        //   3. Volatility cycle — GARCH-like clustering
+        //   4. Mean-reversion   — Ornstein-Uhlenbeck pull to fair value
+        //   5. Order flow       — momentum + reversal imbalance
+        //   6. S/R magnetism    — fractal key levels with breakout memory
+        //   7. Pattern engine   — autonomous chart patterns
+        //   8. Psychological    — adapts to player win/loss streaks
+        // ════════════════════════════════════════════════
+        const MKT = (() => {
+
+            // ── Core state ──────────────────────────────
+            let price = 42000;
+            let fairVal = 42000;  // slow-moving "fair value" (OU anchor)
+
+            // Macro regime
+            let macroRegime = 'neutral';  // bull | bear | neutral
+            let macroTicks = 0;
+            let macroStrength = 0;          // -1..+1, interpolated
+
+            // Micro regime
+            let microRegime = 'sideways';
+            let microTicks = 0;
+
+            // Volatility (GARCH-like)
+            let volBase = 0.0014;
+            let volCurrent = 0.0014;
+            let volTarget = 0.0014;
+
+            // Order flow / momentum
+            let momentum = 0;   // recent net direction, decays
+            let imbalance = 0;   // buy/sell pressure accumulator
+
+            // S/R levels — array of {price, strength, type, bounces}
+            let levels = [];
+
+            // Pattern engine
+            let pattern = null;  // null | {type, ticks, dir, phase, amplitude}
+            let patternTick = 0;
+
+            // Player adaptation
+            let pWinStreak = 0;
+            let pLossStreak = 0;
+            let trapArmed = false;
+
+            // History for OU fair value tracking
+            let priceHistory = [];
+
+            // ── Constants ───────────────────────────────
+            const MACRO_REGIMES = {
+                bull: { targetBias: +0.00035, maxTicks: 250, volMult: 1.0 },
+                bear: { targetBias: -0.00035, maxTicks: 250, volMult: 1.0 },
+                neutral: { targetBias: 0, maxTicks: 180, volMult: 0.85 },
+            };
+
+            const MICRO_REGIMES = {
+                trend_up: { drift: +0.00055, volMult: 1.1, max: 50, weight: [0, 0, 0, 1, 1, 1] },
+                trend_dn: { drift: -0.00055, volMult: 1.1, max: 50, weight: [0, 0, 1, 1, 0, 0] },
+                sideways: { drift: 0, volMult: 0.7, max: 60, weight: [1, 1, 1, 0, 0, 0] },
+                compression: { drift: 0, volMult: 0.22, max: 30, weight: [0, 1, 0, 0, 0, 0] },
+                impulse_up: { drift: +0.0035, volMult: 2.4, max: 10, weight: [0, 0, 0, 0, 0, 1] },
+                impulse_dn: { drift: -0.0035, volMult: 2.4, max: 10, weight: [0, 0, 0, 0, 1, 0] },
+                pullback_up: { drift: -0.0006, volMult: 0.9, max: 18, weight: [0, 0, 1, 0, 0, 0] },
+                pullback_dn: { drift: +0.0006, volMult: 0.9, max: 18, weight: [0, 0, 0, 1, 0, 0] },
+            };
+
+            // Macro→micro transition matrix (weighted)
+            const MICRO_FROM_MACRO = {
+                bull: ['trend_up', 'trend_up', 'trend_up', 'sideways', 'pullback_dn', 'impulse_up', 'compression'],
+                bear: ['trend_dn', 'trend_dn', 'trend_dn', 'sideways', 'pullback_up', 'impulse_dn', 'compression'],
+                neutral: ['sideways', 'sideways', 'compression', 'trend_up', 'trend_dn', 'pullback_up', 'pullback_dn'],
+            };
+
+            const MICRO_NEXT = {
+                trend_up: ['trend_up', 'trend_up', 'sideways', 'pullback_dn', 'impulse_up'],
+                trend_dn: ['trend_dn', 'trend_dn', 'sideways', 'pullback_up', 'impulse_dn'],
+                sideways: ['sideways', 'trend_up', 'trend_dn', 'compression'],
+                compression: ['impulse_up', 'impulse_dn', 'impulse_up', 'impulse_dn'],
+                impulse_up: ['trend_up', 'pullback_dn', 'sideways'],
+                impulse_dn: ['trend_dn', 'pullback_up', 'sideways'],
+                pullback_up: ['trend_dn', 'sideways', 'compression'],
+                pullback_dn: ['trend_up', 'sideways', 'compression'],
+            };
+
+            const MACRO_NEXT = {
+                bull: ['bull', 'bull', 'neutral', 'bear'],
+                bear: ['bear', 'bear', 'neutral', 'bull'],
+                neutral: ['neutral', 'bull', 'bear'],
+            };
+
+            const PATTERNS = {
+                double_top: { dir: -1, phases: [{ d: +1, len: 8 }, { d: -1, len: 5 }, { d: +1, len: 7 }, { d: -3, len: 10 }] },
+                double_bot: { dir: +1, phases: [{ d: -1, len: 8 }, { d: +1, len: 5 }, { d: -1, len: 7 }, { d: +3, len: 10 }] },
+                hns: { dir: -1, phases: [{ d: +1, len: 6 }, { d: -1, len: 4 }, { d: +2, len: 7 }, { d: -1, len: 4 }, { d: +1, len: 5 }, { d: -3, len: 11 }] },
+                bull_flag: { dir: +1, phases: [{ d: +3, len: 7 }, { d: -1, len: 8 }, { d: +3, len: 8 }] },
+                bear_flag: { dir: -1, phases: [{ d: -3, len: 7 }, { d: +1, len: 8 }, { d: -3, len: 8 }] },
+                wedge_up: { dir: -1, phases: [{ d: +1, len: 12 }, { d: +.3, len: 12 }, { d: -2.5, len: 9 }] },
+                wedge_dn: { dir: +1, phases: [{ d: -1, len: 12 }, { d: -.3, len: 12 }, { d: +2.5, len: 9 }] },
+            };
+
+            // ── Utils ────────────────────────────────────
+            function randn() {
+                let u = 0, v = 0;
+                while (!u) u = Math.random(); while (!v) v = Math.random();
+                return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+            }
+            function rand(a, b) { return a + Math.random() * (b - a); }
+            function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+            function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+            // ── Regime transitions ────────────────────────
+            function stepMacro() {
+                macroTicks++;
+                const p = MACRO_REGIMES[macroRegime];
+                // bias toward current macro
+                macroStrength = clamp(macroStrength + (macroRegime === 'bull' ? .003 : macroRegime === 'bear' ? -.003 : 0) * 0.5 + randn() * .001, -.8, .8);
+                const prob = Math.max(0, (macroTicks / p.maxTicks - .5) * .35);
+                if (Math.random() < prob) {
+                    macroRegime = pick(MACRO_NEXT[macroRegime]);
+                    macroTicks = 0;
+                    macroStrength *= .5;
+                    // drift fair value
+                    fairVal = price * (1 + rand(-.02, .02));
+                }
+            }
+
+            function stepMicro() {
+                microTicks++;
+                const p = MICRO_REGIMES[microRegime];
+                const prob = Math.max(0, (microTicks / p.max - .45) * .5);
+                if (Math.random() < prob) {
+                    // bias next micro from macro
+                    if (Math.random() < .6) {
+                        microRegime = pick(MICRO_FROM_MACRO[macroRegime]);
+                    } else {
+                        microRegime = pick(MICRO_NEXT[microRegime]);
+                    }
+                    microTicks = 0;
+                    // possibly fire a pattern
+                    if (!pattern && Math.random() < .18) {
+                        const keys = Object.keys(PATTERNS);
+                        const pk = pick(keys);
+                        pattern = { ...PATTERNS[pk], name: pk, phase: 0, tick: 0, amp: volCurrent * price * 1.8 };
+                    }
+                }
+            }
+
+            // ── Volatility clustering (GARCH) ────────────
+            function stepVol(lastReturn) {
+                const omega = 0.000001, alpha = 0.18, beta = 0.78;
+                volCurrent = Math.sqrt(omega + alpha * lastReturn * lastReturn + beta * volCurrent * volCurrent);
+                volCurrent = clamp(volCurrent, volBase * .18, volBase * 4.5);
+                // additional micro-regime modulation
+                volCurrent *= (MICRO_REGIMES[microRegime].volMult * .3 + .7);
+            }
+
+            // ── S/R level management ─────────────────────
+            function updateLevels(candles) {
+                if (candles.length < 10) return;
+                const recent = candles.slice(-60);
+                // find fractal highs/lows (local extrema)
+                const newLevels = [];
+                for (let i = 2; i < recent.length - 2; i++) {
+                    const c = recent[i];
+                    // fractal high
+                    if (c.h > recent[i - 1].h && c.h > recent[i - 2].h && c.h > recent[i + 1].h && c.h > recent[i + 2].h) {
+                        newLevels.push({ price: c.h, type: 'res', strength: 1, bounces: 0 });
+                    }
+                    // fractal low
+                    if (c.l < recent[i - 1].l && c.l < recent[i - 2].l && c.l < recent[i + 1].l && c.l < recent[i + 2].l) {
+                        newLevels.push({ price: c.l, type: 'sup', strength: 1, bounces: 0 });
+                    }
+                }
+                // cluster nearby levels
+                const clustered = [];
+                for (const lv of newLevels) {
+                    const near = clustered.find(c => Math.abs(c.price - lv.price) / lv.price < .004);
+                    if (near) { near.strength++; near.price = (near.price + lv.price) / 2; }
+                    else clustered.push({ ...lv });
+                }
+                // keep strongest 6
+                levels = clustered.sort((a, b) => b.strength - a.strength).slice(0, 6);
+            }
+
+            // ── S/R force ─────────────────────────────────
+            function levelForce() {
+                let force = 0;
+                for (const lv of levels) {
+                    const dist = (price - lv.price) / price;
+                    const proximity = Math.abs(dist);
+                    if (proximity < .008) {
+                        const strength = lv.strength * .4 + lv.bounces * .2;
+                        // repel from level
+                        const repel = -(dist / proximity) * proximity * strength * volCurrent * 12;
+                        // random break
+                        if (proximity < .002 && Math.random() < .06 + microRegime.includes('impulse') * .25) {
+                            // breakout — flip to attract (price blows through)
+                            force += dist * volCurrent * 8;
+                            lv.bounces = Math.max(0, lv.bounces - 1);
+                        } else {
+                            force += repel;
+                            if (proximity < .003) lv.bounces++;
+                        }
+                    }
+                }
+                return clamp(force, -volCurrent * 3, volCurrent * 3);
+            }
+
+            // ── Pattern force ─────────────────────────────
+            function patternForce() {
+                if (!pattern) return 0;
+                const phase = pattern.phases[pattern.phase];
+                if (!phase) { pattern = null; return 0; }
+                const prog = pattern.tick / phase.len;
+                const force = phase.d * pattern.amp * (1 - prog * .3) * volCurrent * 2.5;
+                pattern.tick++;
+                if (pattern.tick >= phase.len) {
+                    pattern.phase++;
+                    pattern.tick = 0;
+                    if (pattern.phase >= pattern.phases.length) pattern = null;
+                }
+                return force / price; // convert to log-return scale
+            }
+
+            // ── Psychological adaptation ──────────────────
+            function psychForce() {
+                // If player wins a lot → introduce traps (false moves)
+                if (pWinStreak >= 3 && !trapArmed && Math.random() < .3) {
+                    trapArmed = true;
+                }
+                if (trapArmed && Math.random() < .25) {
+                    trapArmed = false;
+                    // fake move: 1-2 candles opposite then snap back
+                    return (microRegime.includes('up') ? -1 : 1) * volCurrent * 2.5;
+                }
+                // If player loses a lot → make trend more obvious temporarily
+                if (pLossStreak >= 4 && Math.random() < .4) {
+                    const bias = macroRegime === 'bull' ? 1 : macroRegime === 'bear' ? -1 : 0;
+                    return bias * volCurrent * .8;
+                }
+                return 0;
+            }
+
+            // ── OU mean-reversion ─────────────────────────
+            function ouForce() {
+                // Ornstein-Uhlenbeck: pull back to fair value
+                const kappa = 0.0012; // reversion speed
+                return kappa * (Math.log(fairVal) - Math.log(price));
+            }
+
+            // ── Momentum & imbalance ─────────────────────
+            function updateMomentum(ret) {
+                momentum = momentum * .82 + ret * .18;
+                imbalance = imbalance * .9 + (ret > 0 ? 1 : -1) * (Math.abs(ret) / volCurrent) * .1;
+                imbalance = clamp(imbalance, -2, 2);
+            }
+
+            // ── Single price tick ─────────────────────────
+            function tick() {
+                stepMacro();
+                stepMicro();
+
+                const mr = MICRO_REGIMES[microRegime];
+                const macroBias = macroStrength * 0.00022;
+
+                // Base log-return components:
+                const driftComponent = mr.drift + macroBias;
+                const diffuseComponent = volCurrent * randn();
+                const ouComponent = ouForce();
+                const lvForce = levelForce();
+                const patForce = patternForce();
+                const pForce = psychForce();
+                const momCarry = momentum * 0.12;
+
+                const logRet = driftComponent + diffuseComponent + ouComponent + lvForce + patForce + pForce + momCarry;
+
+                stepVol(logRet);
+                updateMomentum(logRet);
+
+                price = Math.max(1000, price * Math.exp(logRet));
+                priceHistory.push(price);
+                if (priceHistory.length > 500) priceHistory.shift();
+
+                // Slowly drift fair value toward price (prevents runaway divergence)
+                fairVal = fairVal * .9985 + price * .0015;
+
+                return price;
+            }
+
+            // ── Build OHLC candle from N ticks ───────────
+            function buildCandle(n = 8) {
+                const o = price;
+                let h = o, l = o;
+                // Generate intrabar ticks
+                const barTicks = [o];
+                for (let i = 0; i < n; i++) {
+                    const t = tick();
+                    barTicks.push(t);
+                    if (t > h) h = t;
+                    if (t < l) l = t;
+                }
+                const c = price;
+
+                // Wicks: intrabar extremes already captured;
+                // add small natural wick extensions proportional to body + vol
+                const bodySize = Math.abs(c - o);
+                const volExt = price * volCurrent;
+                const wickUp = Math.abs(randn()) * volExt * (0.3 + bodySize / (price * volCurrent + 1) * 0.1);
+                const wickDown = Math.abs(randn()) * volExt * (0.3 + bodySize / (price * volCurrent + 1) * 0.1);
+
+                return {
+                    o,
+                    h: Math.max(h, Math.max(o, c)) + wickUp,
+                    l: Math.min(l, Math.min(o, c)) - wickDown,
+                    c,
+                };
+            }
+
+            // ── Snapshot / restore (full state) ──────────
+            function snap() {
+                return {
+                    price, fairVal,
+                    macroRegime, macroTicks, macroStrength,
+                    microRegime, microTicks,
+                    volCurrent,
+                    momentum, imbalance,
+                    pattern: pattern ? JSON.parse(JSON.stringify(pattern)) : null,
+                    patternTick,
+                    trapArmed,
+                    levels: JSON.parse(JSON.stringify(levels)),
+                };
+            }
+            function restore(s) {
+                price = s.price; fairVal = s.fairVal;
+                macroRegime = s.macroRegime; macroTicks = s.macroTicks; macroStrength = s.macroStrength;
+                microRegime = s.microRegime; microTicks = s.microTicks;
+                volCurrent = s.volCurrent;
+                momentum = s.momentum; imbalance = s.imbalance;
+                pattern = s.pattern ? JSON.parse(JSON.stringify(s.pattern)) : null;
+                patternTick = s.patternTick;
+                trapArmed = s.trapArmed;
+                levels = JSON.parse(JSON.stringify(s.levels));
+            }
+
+            function setPS(w, l) { pWinStreak = w; pLossStreak = l; }
+
+            // ── Info getters ─────────────────────────────
+            const RNAMES = {
+                bull: 'Тренд ↑', bear: 'Тренд ↓', neutral: 'Флэт',
+                trend_up: 'Тренд ↑', trend_dn: 'Тренд ↓', sideways: 'Боковик',
+                compression: 'Сжатие', impulse_up: 'Импульс ↑', impulse_dn: 'Импульс ↓',
+                pullback_up: 'Откат ↑', pullback_dn: 'Откат ↓',
+            };
+            function getRegimeName() { return RNAMES[microRegime] || microRegime; }
+            function getMacroName() { return RNAMES[macroRegime] || macroRegime; }
+            function getVolPct() { return (volCurrent / volBase * 100).toFixed(0) + '%'; }
+            function getMom() {
+                const d = MICRO_REGIMES[microRegime].drift + macroStrength * .0003;
+                if (d > .001) return { t: 'Сильный ↑', c: 'g' };
+                if (d > .0001) return { t: 'Слабый ↑', c: 'g' };
+                if (d < -.001) return { t: 'Сильный ↓', c: 'r' };
+                if (d < -.0001) return { t: 'Слабый ↓', c: 'r' };
+                return { t: 'Нейтральный', c: '' };
+            }
+            function getPattern() { return pattern ? pattern.name : null; }
+
+            return {
+                buildCandle, snap, restore, updateLevels, setPS,
+                getRegimeName, getMacroName, getVolPct, getMom, getPattern,
+                getLevels: () => levels,
+            };
+        })();
+
+        // warmup — let market settle into a realistic state
+        for (let i = 0; i < 150; i++) MKT.buildCandle(8);
+
+        // ════════════════════════════════════════════════
+        //  CHART COORDINATES
+        // ════════════════════════════════════════════════
+        let PAD = { l: 68, r: 90, t: 16, b: 28 };
+        let chartW = 0, chartH = 0;
+        let chartMinP = 0, chartMaxP = 1, chartN = 0, chartSlot = 0;
+
+        function toX(i) { return PAD.l + (i + .5) * chartSlot; }
+        function toY(p) { return PAD.t + (chartH - PAD.t - PAD.b) - ((p - chartMinP) / (chartMaxP - chartMinP || 1)) * (chartH - PAD.t - PAD.b); }
+        function fromX(x) { return (x - PAD.l) / chartSlot - .5; }
+        function fromY(y) { return chartMinP + (1 - (y - PAD.t) / (chartH - PAD.t - PAD.b)) * (chartMaxP - chartMinP); }
+
+        function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+        // ════════════════════════════════════════════════
+        //  DRAWING SYSTEM
+        // ════════════════════════════════════════════════
+        let currentTool = 'none';
+        let drawings = [];       // committed shapes
+        let drafting = null;    // shape being drawn now
+        let mousePos = { x: 0, y: 0 };
+
+        // Tool needs N clicks:
+        const TOOL_CLICKS = { none: 0, hline: 1, vline: 1, ray: 2, trendline: 2, fib: 2, fibfan: 2, channel: 3, rect: 2, pitchfork: 3 };
+        let clickBuf = []; // accumulated clicks for current shape
+
+        const DRAW_COLOR = '#4e8eff';
+        const FIB_LEVELS = [0, .236, .382, .5, .618, .786, 1];
+        const FIB_COLS = ['rgba(255,255,255,.55)', 'rgba(255,200,0,.7)', 'rgba(0,192,118,.8)', 'rgba(78,142,255,.9)', 'rgba(0,192,118,.8)', 'rgba(255,200,0,.7)', 'rgba(255,255,255,.55)'];
+
+        function drawShape(ctx, sh, preview = false) {
+            const alpha = preview ? .65 : .9;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([]);
+
+            // Helper: absolute index → screen X. Returns null if offscreen.
+            const ax = id => { const si = absToScreen(id); return toX(si); };
+            const inView = id => { const si = absToScreen(id); return si >= 0 && si < chartN; };
+
+            switch (sh.type) {
+                case 'hline': {
+                    const y = toY(sh.price);
+                    ctx.strokeStyle = DRAW_COLOR;
+                    line(ctx, PAD.l, y, chartW - PAD.r, y);
+                    ctx.globalAlpha = alpha * .7;
+                    label(ctx, '$' + fmt(sh.price), chartW - PAD.r + 4, y + 3.5, DRAW_COLOR, 9);
+                    break;
+                }
+                case 'vline': {
+                    const x = ax(sh.idx);
+                    ctx.strokeStyle = DRAW_COLOR;
+                    line(ctx, x, PAD.t, x, chartH - PAD.b);
+                    break;
+                }
+                case 'trendline': {
+                    const x1 = ax(sh.i1), y1 = toY(sh.p1), x2 = ax(sh.i2), y2 = toY(sh.p2);
+                    ctx.strokeStyle = DRAW_COLOR;
+                    line(ctx, x1, y1, x2, y2);
+                    dot(ctx, x1, y1); dot(ctx, x2, y2);
+                    break;
+                }
+                case 'ray': {
+                    const x1 = ax(sh.i1), y1 = toY(sh.p1), x2 = ax(sh.i2), y2 = toY(sh.p2);
+                    const dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const ext = chartW * 3;
+                    ctx.strokeStyle = DRAW_COLOR;
+                    line(ctx, x1, y1, x1 + dx / len * ext, y1 + dy / len * ext);
+                    dot(ctx, x1, y1);
+                    break;
+                }
+                case 'fib': {
+                    const x1 = ax(sh.i1), x2 = ax(sh.i2);
+                    const pHigh = Math.max(sh.p1, sh.p2), pLow = Math.min(sh.p1, sh.p2);
+                    const bull = sh.p2 < sh.p1;
+                    FIB_LEVELS.forEach((lvl, i) => {
+                        const p = bull ? pLow + lvl * (pHigh - pLow) : pHigh - lvl * (pHigh - pLow);
+                        const y = toY(p);
+                        ctx.strokeStyle = FIB_COLS[i]; ctx.lineWidth = 1.2;
+                        line(ctx, Math.min(x1, x2), y, Math.max(x1, x2), y);
+                        label(ctx, lvl.toFixed(3) + ' $' + fmt(p), Math.max(x1, x2) + 4, y + 3.5, FIB_COLS[i], 8);
+                    });
+                    for (let i = 0; i < FIB_LEVELS.length - 1; i++) {
+                        const lvA = FIB_LEVELS[i], lvB = FIB_LEVELS[i + 1];
+                        const pA = bull ? pLow + lvA * (pHigh - pLow) : pHigh - lvA * (pHigh - pLow);
+                        const pB = bull ? pLow + lvB * (pHigh - pLow) : pHigh - lvB * (pHigh - pLow);
+                        ctx.fillStyle = i % 2 === 0 ? 'rgba(78,142,255,.04)' : 'rgba(78,142,255,.02)';
+                        ctx.fillRect(Math.min(x1, x2), Math.min(toY(pA), toY(pB)), Math.abs(x2 - x1), Math.abs(toY(pA) - toY(pB)));
+                    }
+                    break;
+                }
+                case 'fibfan': {
+                    const ox = ax(sh.oi), oy = toY(sh.op);
+                    const ex = ax(sh.ei), ey = toY(sh.ep);
+                    const dy = ey - oy;
+                    [.382, .5, .618].forEach((r, i) => {
+                        const ty = oy + dy * r;
+                        const dx2 = ex - ox, dy2 = ty - oy, len = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1;
+                        const ext = chartW * 3;
+                        ctx.strokeStyle = FIB_COLS[i + 2]; ctx.lineWidth = 1.2;
+                        line(ctx, ox, oy, ox + dx2 / len * ext, oy + dy2 / len * ext);
+                        label(ctx, ['.382', '.500', '.618'][i], ox + dx2 / len * (ext * .4) + 4, oy + dy2 / len * (ext * .4) + 3, FIB_COLS[i + 2], 8);
+                    });
+                    dot(ctx, ox, oy);
+                    break;
+                }
+                case 'channel': {
+                    const x1 = ax(sh.i1), y1 = toY(sh.p1), x2 = ax(sh.i2), y2 = toY(sh.p2);
+                    const x3 = ax(sh.i3), y3 = toY(sh.p3);
+                    ctx.strokeStyle = DRAW_COLOR; ctx.lineWidth = 1.5;
+                    line(ctx, x1, y1, x2, y2);
+                    const offsetY = y3 - ((y2 - y1) / (x2 - x1 || 1) * (x3 - x1) + y1);
+                    ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+                    line(ctx, x1, y1 + offsetY, x2, y2 + offsetY);
+                    line(ctx, x1, y1 - offsetY, x2, y2 - offsetY);
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = 'rgba(78,142,255,.04)';
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1 + offsetY); ctx.lineTo(x2, y2 + offsetY);
+                    ctx.lineTo(x2, y2 - offsetY); ctx.lineTo(x1, y1 - offsetY);
+                    ctx.closePath(); ctx.fill();
+                    dot(ctx, x1, y1); dot(ctx, x2, y2); dot(ctx, x3, y3);
+                    break;
+                }
+                case 'rect': {
+                    const x1 = ax(sh.i1), y1 = toY(sh.p1), x2 = ax(sh.i2), y2 = toY(sh.p2);
+                    const rx = Math.min(x1, x2), ry = Math.min(y1, y2), rw = Math.abs(x2 - x1), rh = Math.abs(y2 - y1);
+                    ctx.strokeStyle = DRAW_COLOR; ctx.lineWidth = 1.3;
+                    ctx.fillStyle = 'rgba(78,142,255,.07)';
+                    ctx.fillRect(rx, ry, rw, rh); ctx.strokeRect(rx, ry, rw, rh);
+                    dot(ctx, x1, y1); dot(ctx, x2, y2);
+                    break;
+                }
+                case 'pitchfork': {
+                    const px = ax(sh.ai), py = toY(sh.ap);
+                    const qx = ax(sh.bi), qy = toY(sh.bp);
+                    const sx = ax(sh.ci), sy = toY(sh.cp);
+                    const mx = (qx + sx) / 2, my = (qy + sy) / 2;
+                    ctx.strokeStyle = DRAW_COLOR; ctx.lineWidth = 1.5;
+                    const ext = chartW * 3;
+                    const mdx = mx - px, mdy = my - py, mlen = Math.sqrt(mdx * mdx + mdy * mdy) || 1;
+                    line(ctx, px, py, px + mdx / mlen * ext, py + mdy / mlen * ext);
+                    ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+                    line(ctx, qx, qy, qx + mdx / mlen * ext, qy + mdy / mlen * ext);
+                    line(ctx, sx, sy, sx + mdx / mlen * ext, sy + mdy / mlen * ext);
+                    ctx.setLineDash([]);
+                    dot(ctx, px, py); dot(ctx, qx, qy); dot(ctx, sx, sy);
+                    break;
+                }
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function line(ctx, x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
+        function dot(ctx, x, y) { ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = DRAW_COLOR; ctx.fill(); }
+        function label(ctx, txt, x, y, col, size = 9) { ctx.fillStyle = col; ctx.font = `${size}px "Geist Mono","Courier New",monospace`; ctx.textAlign = 'left'; ctx.fillText(txt, x, y); }
+
+        // snap click — returns absolute candle index + price
+        function snapClick(cx, cy) {
+            const screenIdx = Math.round(fromX(cx));
+            const absIdx = G.totalCandles - G.visible.length + Math.max(0, Math.min(G.visible.length - 1, screenIdx));
+            const price = fromY(cy);
+            return { idx: absIdx, price, cx, cy };
+        }
+
+        // convert absolute index → screen index given current visible window
+        function absToScreen(absIdx) { return absIdx - (G.totalCandles - G.visible.length); }
+
+        function buildShape(tool, clicks, preview = null) {
+            const c = clicks; const m = preview;
+            switch (tool) {
+                case 'hline': return { type: 'hline', price: c[0].price };
+                case 'vline': return { type: 'vline', idx: c[0].idx };
+                case 'trendline': if (c.length < 2 && !m) return null; return { type: 'trendline', i1: c[0].idx, p1: c[0].price, i2: (m || c[1]).idx, p2: (m || c[1]).price };
+                case 'ray': if (c.length < 2 && !m) return null; return { type: 'ray', i1: c[0].idx, p1: c[0].price, i2: (m || c[1]).idx, p2: (m || c[1]).price };
+                case 'fib': if (c.length < 2 && !m) return null; return { type: 'fib', i1: c[0].idx, p1: c[0].price, i2: (m || c[1]).idx, p2: (m || c[1]).price };
+                case 'fibfan': if (c.length < 2 && !m) return null; return { type: 'fibfan', oi: c[0].idx, op: c[0].price, ei: (m || c[1]).idx, ep: (m || c[1]).price };
+                case 'rect': if (c.length < 2 && !m) return null; return { type: 'rect', i1: c[0].idx, p1: c[0].price, i2: (m || c[1]).idx, p2: (m || c[1]).price };
+                case 'channel':
+                    if (c.length === 1 && m) return { type: 'trendline', i1: c[0].idx, p1: c[0].price, i2: m.idx, p2: m.price };
+                    if (c.length >= 2) return { type: 'channel', i1: c[0].idx, p1: c[0].price, i2: c[1].idx, p2: c[1].price, i3: (m || c[2]).idx, p3: (m || c[2]).price };
+                    return null;
+                case 'pitchfork':
+                    if (c.length === 1 && m) return { type: 'trendline', i1: c[0].idx, p1: c[0].price, i2: m.idx, p2: m.price };
+                    if (c.length === 2 && m) return { type: 'channel', i1: c[0].idx, p1: c[0].price, i2: c[1].idx, p2: c[1].price, i3: m.idx, p3: m.price };
+                    if (c.length >= 3) return { type: 'pitchfork', ai: c[0].idx, ap: c[0].price, bi: c[1].idx, bp: c[1].price, ci: m ? m.idx : c[2].idx, cp: m ? m.price : c[2].price };
+                    return null;
+                default: return null;
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  CANVAS SETUP
+        // ════════════════════════════════════════════════
+        const chartCanvas = document.getElementById('chart');
+        const overlayCanvas = document.getElementById('overlay');
+        const cctx = chartCanvas.getContext('2d');
+        const octx = overlayCanvas.getContext('2d');
+
+        function resize() {
+            const wrap = document.getElementById('chart-wrap');
+            const dpr = window.devicePixelRatio || 1;
+            [chartCanvas, overlayCanvas].forEach(c => {
+                c.width = wrap.clientWidth * dpr;
+                c.height = wrap.clientHeight * dpr;
+                c.style.width = wrap.clientWidth + 'px';
+                c.style.height = wrap.clientHeight + 'px';
+            });
+            cctx.scale(dpr, dpr); octx.scale(dpr, dpr);
+            chartW = wrap.clientWidth; chartH = wrap.clientHeight;
+        }
+        window.addEventListener('resize', () => { resize(); renderChart(); renderOverlay(); });
+
+        // ════════════════════════════════════════════════
+        //  GAME STATE
+        // ════════════════════════════════════════════════
+        const G = { score: 0, correct: 0, rounds: 0, streak: 0, streakHistory: [], wS: 0, lS: 0, locked: false, visible: [], future: [], skips: 3, snapAfter: null, errors: 0, finished: false, totalCandles: 0 };
+        for (let i = 0; i < 50; i++) G.visible.push(MKT.buildCandle(8));
+        G.totalCandles = G.visible.length;
+        MKT.updateLevels(G.visible);
+
+        // ════════════════════════════════════════════════
+        //  CHART RENDERER
+        // ════════════════════════════════════════════════
+        function renderChart(visOverride, futOverride) {
+            const vis = visOverride || G.visible;
+            const fut = futOverride || [];
+            const all = [...vis, ...fut];
+
+            const W = chartW, H = chartH;
+            cctx.clearRect(0, 0, W, H);
+            if (all.length < 2) return;
+
+            const N = all.length;
+            chartN = N;
+            chartSlot = (W - PAD.l - PAD.r) / N;
+            const cw2 = Math.max(2, Math.floor(chartSlot * .58));
+
+            let maxP = Math.max(...all.map(c => c.h));
+            let minP = Math.min(...all.map(c => c.l));
+            const pad2 = (maxP - minP) * .08; maxP += pad2; minP -= pad2;
+            chartMaxP = maxP; chartMinP = minP;
+
+            const CW = W - PAD.l - PAD.r, CH = H - PAD.t - PAD.b;
+
+            // bg gradient
+            const bg = cctx.createLinearGradient(0, 0, 0, H);
+            bg.addColorStop(0, 'rgba(22,22,27,.55)'); bg.addColorStop(1, 'rgba(12,12,14,0)');
+            cctx.fillStyle = bg; cctx.fillRect(0, 0, W, H);
+
+            // grid
+            cctx.font = '10px "Geist Mono","Courier New",monospace';
+            for (let i = 0; i <= 5; i++) {
+                const y = PAD.t + (i / 5) * CH, p = maxP - (i / 5) * (maxP - minP);
+                cctx.strokeStyle = 'rgba(255,255,255,.04)'; cctx.lineWidth = 1; cctx.setLineDash([]);
+                cctx.beginPath(); cctx.moveTo(PAD.l, y); cctx.lineTo(W - PAD.r, y); cctx.stroke();
+                cctx.fillStyle = '#3c3c4a'; cctx.textAlign = 'right';
+                cctx.fillText('$' + fmt(p), PAD.l - 6, y + 3.5);
+            }
+
+            // S/R from fractal levels
+            const lvls = MKT.getLevels();
+            cctx.font = '9px "Geist Mono",monospace';
+            for (const lv of lvls) {
+                const ly = toY(lv.price);
+                if (ly < PAD.t || ly > H - PAD.b) continue;
+                const isRes = lv.type === 'res';
+                const alpha = Math.min(0.12 + lv.strength * .06, 0.38);
+                cctx.strokeStyle = isRes ? `rgba(255,59,92,${alpha})` : `rgba(0,192,118,${alpha})`;
+                cctx.lineWidth = Math.min(Math.max(lv.strength * .4, 0.5), 1.5); cctx.setLineDash([3, 5]);
+                cctx.beginPath(); cctx.moveTo(PAD.l, ly); cctx.lineTo(W - PAD.r, ly); cctx.stroke();
+                cctx.setLineDash([]);
+                cctx.fillStyle = isRes ? `rgba(255,59,92,${alpha + .3})` : `rgba(0,192,118,${alpha + .3})`;
+                cctx.textAlign = 'left';
+                cctx.fillText((isRes ? 'R' : 'S') + (lv.strength > 1 ? lv.strength : ''), W - PAD.r + 4, ly + 3.5);
+            }
+
+            // candles
+            for (let i = 0; i < all.length; i++) {
+                const { o, h, l, c } = all[i];
+                const isFut = i >= vis.length;
+                const bull = c >= o;
+                const x = toX(i);
+                const bTop = toY(Math.max(o, c)), bBot = toY(Math.min(o, c));
+                const bH = Math.max(1.5, bBot - bTop);
+                const bodyCol = bull ? (isFut ? 'rgba(0,192,118,.45)' : '#00c076') : (isFut ? 'rgba(255,59,92,.45)' : '#ff3b5c');
+                const wickCol = bull ? (isFut ? 'rgba(0,192,118,.3)' : 'rgba(0,192,118,.6)') : (isFut ? 'rgba(255,59,92,.3)' : 'rgba(255,59,92,.6)');
+                const bodyBord = bull ? 'rgba(0,192,118,.35)' : 'rgba(255,59,92,.35)';
+
+                cctx.strokeStyle = wickCol; cctx.lineWidth = 1; cctx.setLineDash([]);
+                cctx.beginPath(); cctx.moveTo(x, toY(h)); cctx.lineTo(x, toY(l)); cctx.stroke();
+                cctx.fillStyle = bodyCol; cctx.fillRect(x - cw2 / 2, bTop, cw2, bH);
+                if (cw2 >= 4) { cctx.strokeStyle = bodyBord; cctx.lineWidth = .5; cctx.strokeRect(x - cw2 / 2, bTop, cw2, bH); }
+            }
+
+            // last price line+tag
+            const last = all[all.length - 1];
+            const bull2 = last.c >= last.o;
+            const ly = toY(last.c);
+            cctx.strokeStyle = bull2 ? 'rgba(0,192,118,.3)' : 'rgba(255,59,92,.3)';
+            cctx.lineWidth = 1; cctx.setLineDash([3, 4]);
+            cctx.beginPath(); cctx.moveTo(PAD.l, ly); cctx.lineTo(W - PAD.r, ly); cctx.stroke();
+            cctx.setLineDash([]);
+            const tw = 76, th = 18, tx = W - PAD.r + 2, ty = ly - th / 2;
+            cctx.fillStyle = bull2 ? '#00c076' : '#ff3b5c';
+            if (cctx.roundRect) { cctx.beginPath(); cctx.roundRect(tx, ty, tw, th, 4); cctx.fill(); }
+            else cctx.fillRect(tx, ty, tw, th);
+            cctx.fillStyle = '#fff'; cctx.font = 'bold 10px "Geist Mono",monospace'; cctx.textAlign = 'center';
+            cctx.fillText('$' + fmt(last.c), tx + tw / 2, ty + 12.5);
+
+            // volume bars
+            const maxVol = Math.max(...all.map(c => Math.abs(c.h - c.l)));
+            const volH = CH * .07;
+            for (let i = 0; i < all.length; i++) {
+                const { h, l, c: cc, o: oo } = all[i];
+                const rv = Math.abs(h - l) / (maxVol || 1), bh = Math.max(1, rv * volH);
+                const x = toX(i);
+                cctx.fillStyle = cc >= oo ? 'rgba(0,192,118,.15)' : 'rgba(255,59,92,.15)';
+                cctx.fillRect(x - cw2 / 2, PAD.t + CH - bh, cw2, bh);
+            }
+
+            // time axis
+            cctx.fillStyle = '#2e3140'; cctx.font = '9px "Geist Mono",monospace'; cctx.textAlign = 'center';
+            const step = Math.max(1, Math.floor(N / 8));
+            for (let i = 0; i < N; i += step) cctx.fillText((N - i) + 'm', toX(i), PAD.t + CH + 16);
+
+            // committed drawings
+            renderDrawings(cctx);
+        }
+
+        function renderDrawings(ctx) {
+            drawings.forEach(sh => drawShape(ctx, sh, false));
+        }
+
+        function renderOverlay() {
+            octx.clearRect(0, 0, chartW, chartH);
+            // draft shape
+            if (drafting) drawShape(octx, drafting, true);
+            // crosshair
+            if (currentTool !== 'none' && mousePos.x > PAD.l && mousePos.x < chartW - PAD.r && mousePos.y > PAD.t && mousePos.y < chartH - PAD.b) {
+                octx.strokeStyle = 'rgba(255,255,255,.12)'; octx.lineWidth = 1; octx.setLineDash([3, 4]);
+                octx.beginPath(); octx.moveTo(mousePos.x, PAD.t); octx.lineTo(mousePos.x, chartH - PAD.b); octx.stroke();
+                octx.beginPath(); octx.moveTo(PAD.l, mousePos.y); octx.lineTo(chartW - PAD.r, mousePos.y); octx.stroke();
+                octx.setLineDash([]);
+                // price label on crosshair
+                const p = fromY(mousePos.y);
+                octx.fillStyle = 'rgba(78,142,255,.85)';
+                const tw = 72, th = 16, tx = chartW - PAD.r + 2, ty = mousePos.y - 8;
+                if (octx.roundRect) { octx.beginPath(); octx.roundRect(tx, ty, tw, th, 3); octx.fill(); }
+                else octx.fillRect(tx, ty, tw, th);
+                octx.fillStyle = '#fff'; octx.font = '9px "Geist Mono",monospace'; octx.textAlign = 'center';
+                octx.fillText('$' + fmt(p), tx + tw / 2, ty + 11);
+            }
+        }
+
+        // ════════════════════════════════════════════════
+        //  TOOLBAR
+        // ════════════════════════════════════════════════
+        // ════════════════════════════════════════════════
+        //  DRAW DROPDOWN
+        // ════════════════════════════════════════════════
+        function toggleDrawMenu() {
+            const dd = document.getElementById('draw-dropdown');
+            const tg = document.getElementById('draw-toggle');
+            const open = dd.classList.toggle('open');
+            tg.classList.toggle('open', open);
+        }
+        // close on outside click
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.draw-wrapper')) {
+                document.getElementById('draw-dropdown').classList.remove('open');
+                document.getElementById('draw-toggle').classList.remove('open');
+            }
+        });
+
+        // ── Tool selection (cursor btn + dropdown items) ──
+        document.querySelectorAll('[data-tool]').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const tool = btn.dataset.tool;
+                setTool(tool);
+                // close dropdown if it was a dd-item
+                if (btn.classList.contains('dd-item')) {
+                    document.getElementById('draw-dropdown').classList.remove('open');
+                    document.getElementById('draw-toggle').classList.remove('open');
+                }
+            });
+        });
+
+        const TOOL_NAMES = {
+            none: '', hline: 'Горизонтальная', vline: 'Вертикальная', trendline: 'Линия тренда',
+            ray: 'Луч', fib: 'Fib Retracement', fibfan: 'Fib Fan',
+            rect: 'Прямоугольник', channel: 'Параллельный канал', pitchfork: "Andrew's Pitchfork",
+        };
+
+        function setTool(tool) {
+            currentTool = tool; clickBuf = []; drafting = null;
+            // update cursor btn active
+            document.querySelectorAll('[data-tool]').forEach(b => {
+                if (b.closest('.draw-dropdown')) b.classList.toggle('active', b.dataset.tool === tool);
+                else if (b.dataset.tool === 'none') b.classList.toggle('active', tool === 'none');
+            });
+            const wrap = document.getElementById('chart-wrap');
+            wrap.className = 'chart-wrap ' + (tool === 'none' ? 'cursor-default' : 'cursor-crosshair');
+            // label
+            const lbl = document.getElementById('active-tool-label');
+            lbl.textContent = tool === 'none' ? '' : TOOL_NAMES[tool] || tool;
+            // update draw-toggle appearance
+            const tg = document.getElementById('draw-toggle');
+            tg.style.borderColor = tool !== 'none' ? 'rgba(78,142,255,.4)' : '';
+            tg.style.color = tool !== 'none' ? 'var(--accent)' : '';
+            renderOverlay();
+        }
+
+        function undoDraw() { drawings.pop(); renderChart(); renderOverlay(); }
+        function clearDrawings() { drawings = []; renderChart(); renderOverlay(); }
+
+        // keyboard
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { clickBuf = []; drafting = null; setTool('none'); }
+            if ((e.key === 'Delete' || e.key === 'Backspace') && currentTool === 'none') { drawings.pop(); renderChart(); renderOverlay(); }
+            if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); drawings.pop(); renderChart(); renderOverlay(); }
+        });
+
+        // ════════════════════════════════════════════════
+        //  GAME SCORING — streak multiplier + score-based penalty
+        // ════════════════════════════════════════════════
+        function getMultiplier(streak) {
+            if (streak <= 0) return 1;
+            if (streak === 1) return 1.5;
+            if (streak === 2) return 2;
+            if (streak === 3) return 2.5;
+            if (streak === 4) return 3;
+            if (streak === 5) return 4;
+            return 5;
+        }
+        function calcWinPoints(streak) { return Math.round(10 * getMultiplier(streak)); }
+        function calcLossPenalty() {
+            // Scales with current score — floor 5pts, up to 25% of score
+            const base = Math.max(5, Math.floor(G.score * 0.08));
+            const lossScale = 1 + G.lS * 0.4;
+            return Math.min(Math.round(base * lossScale), Math.max(15, Math.floor(G.score * 0.25)));
+        }
+
+        const MAX_ERRORS = 10;
+
+        // ════════════════════════════════════════════════
+        //  MARKET RESET (per session)
+        // ════════════════════════════════════════════════
+        function resetMarket() {
+            drawings = [];
+            G.visible = []; G.future = []; G.snapAfter = null; G.totalCandles = 0;
+            for (let i = 0; i < 50; i++) G.visible.push(MKT.buildCandle(8));
+            G.totalCandles = G.visible.length;
+            MKT.updateLevels(G.visible);
+        }
+
+        // ════════════════════════════════════════════════
+        //  SESSION SYSTEM (localStorage)
+        // ════════════════════════════════════════════════
+        const SESSIONS_KEY = 'cp_sessions_v2', ACTIVE_KEY = 'cp_active_v2';
+        let sessions = [], activeSessionId = null;
+
+        function loadSessions() {
+            try { sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]'); } catch (e) { sessions = []; }
+            activeSessionId = localStorage.getItem(ACTIVE_KEY) || null;
+        }
+        function saveSessions() {
+            localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+            if (activeSessionId) localStorage.setItem(ACTIVE_KEY, activeSessionId);
+        }
+        function sessionById(id) { return sessions.find(s => s.id === id); }
+
+        function newSession() {
+            const id = 's' + Date.now();
+            sessions.unshift({ id, name: 'Сессия ' + (sessions.length + 1), score: 0, correct: 0, rounds: 0, streak: 0, bestStreak: 0, errors: 0, streakHistory: [], wS: 0, lS: 0, skips: 3, finished: false, createdAt: Date.now() });
+            saveSessions();
+            switchSession(id);
+        }
+
+        function loadSession(id) {
+            if (id === activeSessionId) return; // already here, don't restart
+            switchSession(id);
+        }
+
+        function switchSession(id) {
+            if (activeSessionId) { const prev = sessionById(activeSessionId); if (prev) syncGtoSession(prev); }
+            activeSessionId = id;
+            localStorage.setItem(ACTIVE_KEY, id);
+            const s = sessionById(id);
+            if (!s) return;
+            G.score = s.score; G.correct = s.correct; G.rounds = s.rounds;
+            G.streak = s.streak; G.streakHistory = [...(s.streakHistory || [])];
+            G.wS = s.wS || 0; G.lS = s.lS || 0; G.skips = s.skips != null ? s.skips : 3;
+            G.errors = s.errors || 0; G.finished = s.finished || false;
+            resetMarket();
+            renderSidebar(); updatePanel();
+            if (s.finished) { showGameOver(); return; }
+            setBtns(true); initRound();
+        }
+
+        function syncGtoSession(s) {
+            s.score = G.score; s.correct = G.correct; s.rounds = G.rounds;
+            s.streak = G.streak; s.bestStreak = Math.max(s.bestStreak || 0, G.streak);
+            s.streakHistory = [...G.streakHistory];
+            s.wS = G.wS; s.lS = G.lS; s.skips = G.skips;
+            s.errors = G.errors || 0; s.finished = G.finished || false;
+            saveSessions();
+        }
+
+        function deleteSession(id, e) {
+            e.stopPropagation();
+            sessions = sessions.filter(s => s.id !== id);
+            saveSessions();
+            if (activeSessionId === id) {
+                activeSessionId = null;
+                if (sessions.length > 0) switchSession(sessions[0].id);
+                else newSession();
+            } else renderSidebar();
+        }
+
+        function renderSidebar() {
+            const list = document.getElementById('sb-list');
+            if (!sessions.length) { list.innerHTML = `<div style="padding:16px;font-size:10px;color:var(--txt3);text-align:center;">Нет сессий</div>`; return; }
+            list.innerHTML = sessions.map(s => {
+                const dateStr = new Date(s.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+                const acc = s.rounds > 0 ? Math.round(s.correct / s.rounds * 100) + '%' : '—';
+                const isActive = s.id === activeSessionId;
+                const errUsed = s.errors || 0;
+                const fin = s.finished;
+                // SVG dot lives
+                const hpDots = Array.from({ length: MAX_ERRORS }, (_, i) =>
+                    `<div style="width:6px;height:6px;border-radius:50%;background:${i < errUsed ? 'var(--r)' : 'var(--border2)'};flex-shrink:0;"></div>`
+                ).join('');
+                return `<div class="sb-item${isActive ? ' active' : ''}${fin ? ' sb-finished' : ''}" onclick="loadSession('${s.id}')">
+      <button class="sb-del" onclick="deleteSession('${s.id}',event)" title="Удалить">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2L2 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <span class="sb-item-score">${s.score}</span>
+      <div class="sb-item-name">${s.name}</div>
+      <div class="sb-item-meta">${dateStr} · ${s.rounds}р · ${acc}</div>
+      ${fin
+                        ? `<div class="sb-item-fin" style="display:flex;align-items:center;gap:4px;margin-top:3px;">
+            <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="var(--g)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>ЗАВЕРШЕНА</span>
+           </div>`
+                        : `<div style="display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;">${hpDots}</div>`
+                    }
+    </div>`;
+            }).join('');
+        }
+
+        // ════════════════════════════════════════════════
+        //  GAME OVER
+        // ════════════════════════════════════════════════
+        function showGameOver() {
+            hideResult();
+            setBtns(false);
+            document.getElementById('go-score').textContent = G.score;
+            document.getElementById('go-rounds').textContent = G.rounds;
+            document.getElementById('go-acc').textContent = G.rounds > 0 ? Math.round(G.correct / G.rounds * 100) + '%' : '—';
+            document.getElementById('gameover-veil').classList.add('on');
+        }
+        function hideGameOver() { document.getElementById('gameover-veil').classList.remove('on'); }
+
+        // ════════════════════════════════════════════════
+        //  GAME LOGIC
+        // ════════════════════════════════════════════════
+        overlayCanvas.addEventListener('mousemove', e => {
+            const r = overlayCanvas.getBoundingClientRect();
+            mousePos = { x: e.clientX - r.left, y: e.clientY - r.top };
+            if (currentTool === 'none') { renderOverlay(); return; }
+
+            if (clickBuf.length > 0) {
+                const preview = snapClick(mousePos.x, mousePos.y);
+                drafting = buildShape(currentTool, clickBuf, preview);
+            }
+            renderOverlay();
+        });
+
+        overlayCanvas.addEventListener('mouseleave', () => {
+            mousePos = { x: -999, y: -999 };
+            renderOverlay();
+        });
+
+        overlayCanvas.addEventListener('click', e => {
+            if (currentTool === 'none') return;
+            const r = overlayCanvas.getBoundingClientRect();
+            const cx = e.clientX - r.left, cy = e.clientY - r.top;
+            if (cx < PAD.l || cx > chartW - PAD.r || cy < PAD.t || cy > chartH - PAD.b) return;
+
+            const pt = snapClick(cx, cy);
+            const needed = TOOL_CLICKS[currentTool] || 1;
+
+            clickBuf.push(pt);
+
+            if (clickBuf.length >= needed) {
+                const sh = buildShape(currentTool, clickBuf, null);
+                if (sh) { drawings.push(sh); renderChart(); }
+                clickBuf = [];
+                drafting = null;
+                renderOverlay();
+            } else {
+                drafting = buildShape(currentTool, clickBuf, snapClick(cx, cy));
+                renderOverlay();
+            }
+        });
+
+        // Escape to cancel
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { clickBuf = []; drafting = null; setTool('none'); }
+            if ((e.key === 'Delete' || e.key === 'Backspace') && currentTool === 'none') { drawings.pop(); renderChart(); renderOverlay(); }
+            if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); drawings.pop(); renderChart(); renderOverlay(); }
+        });
+
+        function initRound() {
+            G.locked = false; setBtns(true);
+            // snapshot BEFORE generating future so we can restore for the player view,
+            // but keep a "committed" snap that we advance to after prediction
+            const snapBefore = MKT.snap();
+            G.future = [];
+            for (let i = 0; i < 12; i++) G.future.push(MKT.buildCandle(8));
+            // Save the state AFTER generating future — this is where MKT should be after reveal
+            G.snapAfter = MKT.snap();
+            // Restore so MKT price matches current visible tail (cosmetic, for level calc)
+            MKT.restore(snapBefore);
+            renderChart(G.visible, []); updateTopBar(G.visible[G.visible.length - 1]); updatePanel();
+        }
+
+        function predict(dir) {
+            if (G.locked) return;
+            G.locked = true; setBtns(false);
+
+            const startP = G.visible[G.visible.length - 1].c;
+            const endP = G.future[G.future.length - 1].c;
+            const actual = endP >= startP ? 'up' : 'down';
+            const win = dir === actual;
+
+            let step = 0;
+            const reveal = G.future.slice();
+            const iv = setInterval(() => {
+                if (step < reveal.length) {
+                    renderChart([...G.visible, ...reveal.slice(0, step + 1)], []);
+                    updateTopBar(reveal[step]); step++;
+                } else {
+                    clearInterval(iv); endRound(win, startP, endP);
+                }
+            }, 65);
+        }
+
+        function endRound(win, s, e) {
+            G.rounds++;
+            let pts = 0;
+            if (win) {
+                G.correct++;
+                pts = calcWinPoints(G.streak);
+                G.streak++; G.wS++; G.lS = 0;
+                G.score += pts;
+            } else {
+                G.errors = (G.errors || 0) + 1;
+                const penalty = calcLossPenalty();
+                G.lS++; G.wS = 0;
+                G.score = Math.max(0, G.score - penalty);
+                pts = -penalty;
+                G.streak = 0;
+            }
+            G.streakHistory.push(win);
+            MKT.setPS(G.wS, G.lS);
+            MKT.restore(G.snapAfter);
+            G.visible = [...G.visible, ...G.future].slice(-50);
+            G.totalCandles += G.future.length;
+            MKT.updateLevels(G.visible);
+            if (activeSessionId) { const ss = sessionById(activeSessionId); if (ss) syncGtoSession(ss); }
+            updatePanel(); renderSidebar();
+            // Check game over
+            if (G.errors >= MAX_ERRORS) {
+                G.finished = true;
+                if (activeSessionId) { const ss = sessionById(activeSessionId); if (ss) syncGtoSession(ss); }
+                showResult(win, s, e, pts);
+                setTimeout(() => { hideResult(); showGameOver(); }, 1600);
+                return;
+            }
+            showResult(win, s, e, pts);
+            setTimeout(() => { hideResult(); initRound(); }, 1600);
+        }
+
+        function showResult(win, s, e, pts) {
+            const pct = ((e - s) / s * 100).toFixed(2), sign = pct >= 0 ? '+' : '';
+            document.getElementById('r-svg').innerHTML = win
+                ? `<path d="M4 12l5 5L20 7" stroke="#00c076" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
+                : `<path d="M6 6l12 12M18 6L6 18" stroke="#ff3b5c" stroke-width="2.5" stroke-linecap="round"/>`;
+            document.getElementById('r-icon').className = 'r-icon ' + (win ? 'wi' : 'li');
+            document.getElementById('r-label').textContent = win ? 'WIN' : 'LOSS';
+            document.getElementById('r-label').className = 'r-label ' + (win ? 'wt' : 'lt');
+
+            const ptsEl = document.getElementById('r-pts');
+            ptsEl.textContent = (pts >= 0 ? '+' : '') + pts + ' очков';
+            ptsEl.className = 'r-pts ' + (pts >= 0 ? 'pos' : 'neg');
+
+            document.getElementById('r-detail').textContent = `Цена ${e >= s ? '↑' : '↓'} · ${sign}${pct}%`;
+
+            const rs = document.getElementById('r-streak');
+            if (win && G.streak > 1) {
+                const mult = getMultiplier(G.streak - 1);
+                rs.textContent = `СЕРИЯ ×${G.streak - 1} · ${mult}× множитель`;
+                rs.classList.add('show');
+            } else {
+                rs.classList.remove('show');
+            }
+            document.getElementById('result-veil').classList.add('on');
+        }
+
+        function hideResult() { document.getElementById('result-veil').classList.remove('on'); }
+
+        function setBtns(on) {
+            document.getElementById('btn-long').disabled = !on;
+            document.getElementById('btn-short').disabled = !on;
+            document.getElementById('btn-skip').disabled = !on || G.skips <= 0;
+            document.getElementById('skip-count').textContent = `(${G.skips})`;
+        }
+
+        function skipRound() {
+            if (G.locked || G.skips <= 0) return;
+            G.skips--;
+            G.locked = true; setBtns(false);
+            const reveal = G.future.slice();
+            let step = 0;
+            const iv = setInterval(() => {
+                if (step < reveal.length) {
+                    renderChart([...G.visible, ...reveal.slice(0, step + 1)], []);
+                    updateTopBar(reveal[step]); step++;
+                } else {
+                    clearInterval(iv);
+                    MKT.restore(G.snapAfter);
+                    G.visible = [...G.visible, ...G.future].slice(-50);
+                    MKT.updateLevels(G.visible);
+                    G.streak = 0; G.wS = 0; G.lS = 0;
+                    if (activeSessionId) { const ss = sessionById(activeSessionId); if (ss) syncGtoSession(ss); }
+                    updatePanel(); renderSidebar();
+                    setTimeout(() => initRound(), 300);
+                }
+            }, 40);
+        }
+
+        function updateTopBar(c) {
+            if (!c) return;
+            const ref = G.visible[0].o, pct = ((c.c - ref) / ref * 100).toFixed(2), bull = c.c >= c.o;
+            const pm = document.getElementById('price-main');
+            pm.textContent = '$' + fmt(c.c); pm.className = 'price-main ' + (bull ? 'g' : 'r');
+            const pb = document.getElementById('pct-badge');
+            pb.textContent = (pct >= 0 ? '+' : '') + pct + '%'; pb.className = 'badge ' + (pct >= 0 ? 'g' : 'r');
+            document.getElementById('o-val').textContent = '$' + fmt(c.o);
+            document.getElementById('h-val').textContent = '$' + fmt(c.h);
+            document.getElementById('l-val').textContent = '$' + fmt(c.l);
+            document.getElementById('c-val').textContent = '$' + fmt(c.c);
+        }
+
+        function updatePanel() {
+            document.getElementById('s-score').textContent = G.score;
+            document.getElementById('s-acc').textContent = G.rounds > 0 ? Math.round(G.correct / G.rounds * 100) + '%' : '—';
+            document.getElementById('s-rounds').textContent = G.rounds;
+            document.getElementById('s-streak').textContent = G.streak;
+            document.getElementById('s-streak').className = 'stat-v ' + (G.streak >= 3 ? 'g' : G.streak > 0 ? '' : '');
+
+            // multiplier badge
+            const mult = getMultiplier(G.streak);
+            const mb = document.getElementById('mult-badge');
+            const mv = document.getElementById('mult-val');
+            mv.textContent = '×' + mult;
+            mb.className = 'mult-badge' + (G.streak >= 2 ? ' active' : G.lS >= 2 ? ' danger' : '');
+
+            // errors / lives
+            const errUsed = G.errors || 0;
+            document.getElementById('errors-bar').innerHTML =
+                Array.from({ length: MAX_ERRORS }, (_, i) =>
+                    `<div class="err-dot ${i < errUsed ? 'used' : 'left'}"></div>`
+                ).join('');
+            document.getElementById('history-dots').innerHTML = G.streakHistory.slice(-14).map((w, i, a) =>
+                `<div class="hd ${w ? 'w' : 'l'}${i === a.length - 1 ? ' fresh' : ''}"></div>`).join('');
+            document.getElementById('m-mode').textContent = MKT.getRegimeName() + ' / ' + MKT.getMacroName();
+            document.getElementById('m-vol').textContent = MKT.getVolPct();
+            const mom = MKT.getMom();
+            document.getElementById('m-mom').textContent = MKT.getPattern() ? 'Паттерн: ' + MKT.getPattern() : mom.t;
+            document.getElementById('m-mom').className = 'mkt-v ' + mom.c;
+        }
+
+        // ════════════════════════════════════════════════
+        //  SUPABASE
+        // ════════════════════════════════════════════════
+        const SB_URL = 'https://vrigpkmwmjrvvdtdncqe.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyaWdwa213bWpydnZkdGRuY3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDQyMTAsImV4cCI6MjA4OTUyMDIxMH0.q-Xk6hXb0xkUPmAwPEj2TW8K0TKO-8jgdDboa2mJ1Ys';
+        const sb = supabase.createClient(SB_URL, SB_KEY);
+
+        let currentUser = null;
+
+        // ── AUTH UI ──────────────────────────────────────
+        let authMode = 'login';
+        function switchTab(mode) {
+            authMode = mode;
+            document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+            document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+            document.getElementById('auth-submit').textContent = mode === 'login' ? 'Войти' : 'Зарегистрироваться';
+            document.getElementById('auth-name').style.display = mode === 'register' ? 'block' : 'none';
+            document.getElementById('auth-err').classList.remove('show');
+            document.getElementById('auth-ok').classList.remove('show');
+        }
+
+        async function authSubmit() {
+            const email = document.getElementById('auth-email').value.trim();
+            const pass = document.getElementById('auth-pass').value;
+            const name = document.getElementById('auth-name').value.trim();
+            const btn = document.getElementById('auth-submit');
+            const errEl = document.getElementById('auth-err');
+            const okEl = document.getElementById('auth-ok');
+            errEl.classList.remove('show'); okEl.classList.remove('show');
+            if (!email || !pass) { errEl.textContent = 'Заполни все поля'; errEl.classList.add('show'); return; }
+            btn.disabled = true; btn.textContent = '...';
+            try {
+                if (authMode === 'login') {
+                    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+                    if (error) throw error;
+                } else {
+                    if (!name) { errEl.textContent = 'Введи имя'; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Зарегистрироваться'; return; }
+                    const { data, error } = await sb.auth.signUp({ email, password: pass });
+                    if (error) throw error;
+                    if (data.user) {
+                        await sb.from('leaderboard').upsert({ user_id: data.user.id, username: name, best_score: 0, total_rounds: 0, accuracy: 0 }, { onConflict: 'user_id' });
+                    }
+                    okEl.textContent = 'Письмо подтверждения отправлено. Проверь почту.';
+                    okEl.classList.add('show');
+                    btn.disabled = false; btn.textContent = 'Зарегистрироваться';
+                    return;
+                }
+            } catch (e) {
+                errEl.textContent = e.message || 'Ошибка'; errEl.classList.add('show');
+                btn.disabled = false; btn.textContent = authMode === 'login' ? 'Войти' : 'Зарегистрироваться';
+            }
+        }
+
+        // enter key on inputs
+        document.getElementById('auth-email').addEventListener('keydown', e => { if (e.key === 'Enter') authSubmit(); });
+        document.getElementById('auth-pass').addEventListener('keydown', e => { if (e.key === 'Enter') authSubmit(); });
+        document.getElementById('auth-name').addEventListener('keydown', e => { if (e.key === 'Enter') authSubmit(); });
+
+        async function authLogout() {
+            await sb.auth.signOut();
+        }
+
+        function showAuthScreen() { document.getElementById('auth-screen').classList.remove('hidden'); }
+        function hideAuthScreen() { document.getElementById('auth-screen').classList.add('hidden'); }
+
+        function setUserBar(user) {
+            if (!user) { document.getElementById('user-bar').style.display = 'none'; return; }
+            document.getElementById('user-bar').style.display = 'flex';
+            // get name from leaderboard or fallback to email prefix
+            const initials = (user.email || '?')[0].toUpperCase();
+            document.getElementById('user-avatar').textContent = initials;
+            document.getElementById('user-email').textContent = user.email || '';
+        }
+
+        // ── SESSION SYNC WITH SUPABASE ───────────────────
+        async function sbLoadSessions() {
+            if (!currentUser) return;
+            const { data, error } = await sb.from('sessions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+            if (error || !data) return;
+            // map to local format
+            sessions = data.map(r => ({
+                id: r.id, name: r.name,
+                score: r.score, correct: r.correct, rounds: r.rounds,
+                streak: r.streak, bestStreak: r.best_streak,
+                errors: r.errors, streakHistory: r.streak_history || [],
+                wS: r.ws, lS: r.ls, skips: r.skips,
+                finished: r.finished, createdAt: new Date(r.created_at).getTime(),
+            }));
+            saveSessions(); // also keep in localStorage as cache
+        }
+
+        async function sbSaveSession(s) {
+            if (!currentUser) return;
+            await sb.from('sessions').upsert({
+                id: s.id, user_id: currentUser.id, name: s.name,
+                score: s.score, correct: s.correct, rounds: s.rounds,
+                streak: s.streak, best_streak: s.bestStreak || 0,
+                errors: s.errors || 0, streak_history: s.streakHistory || [],
+                ws: s.wS || 0, ls: s.lS || 0, skips: s.skips != null ? s.skips : 3,
+                finished: s.finished || false,
+            }, { onConflict: 'id' });
+            // update leaderboard
+            if (s.score > 0) {
+                const { data: lb } = await sb.from('leaderboard').select('best_score,username').eq('user_id', currentUser.id).single();
+                const bestScore = Math.max(s.score, lb?.best_score || 0);
+                const { data: allS } = await sb.from('sessions').select('rounds,correct').eq('user_id', currentUser.id);
+                let totalRounds = 0, totalCorrect = 0;
+                (allS || []).forEach(r => { totalRounds += r.rounds; totalCorrect += r.correct; });
+                const acc = totalRounds > 0 ? Math.round(totalCorrect / totalRounds * 100) : 0;
+                await sb.from('leaderboard').upsert({
+                    user_id: currentUser.id,
+                    username: lb?.username || currentUser.email?.split('@')[0] || 'Player',
+                    best_score: bestScore,
+                    total_rounds: totalRounds,
+                    accuracy: acc,
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'user_id' });
+            }
+        }
+
+        async function sbDeleteSession(id) {
+            if (!currentUser) return;
+            await sb.from('sessions').delete().eq('id', id).eq('user_id', currentUser.id);
+        }
+
+        async function sbNewSession() {
+            if (!currentUser) return null;
+            const name = 'Сессия ' + (sessions.length + 1);
+            const { data, error } = await sb.from('sessions').insert({
+                user_id: currentUser.id, name,
+                score: 0, correct: 0, rounds: 0, streak: 0, best_streak: 0,
+                errors: 0, streak_history: [], ws: 0, ls: 0, skips: 3, finished: false,
+            }).select().single();
+            if (error || !data) return null;
+            return {
+                id: data.id, name: data.name, score: 0, correct: 0, rounds: 0,
+                streak: 0, bestStreak: 0, errors: 0, streakHistory: [],
+                wS: 0, lS: 0, skips: 3, finished: false, createdAt: Date.now(),
+            };
+        }
+
+        // ── LEADERBOARD UI ───────────────────────────────
+        async function showLb() {
+            document.getElementById('lb-veil').classList.add('on');
+            document.getElementById('lb-list').innerHTML = '<div class="lb-empty">Загрузка...</div>';
+            const { data, error } = await sb.from('leaderboard').select('*').order('best_score', { ascending: false }).limit(50);
+            if (error || !data) {
+                document.getElementById('lb-list').innerHTML = '<div class="lb-empty">Ошибка загрузки</div>';
+                return;
+            }
+            if (!data.length) {
+                document.getElementById('lb-list').innerHTML = '<div class="lb-empty">Пока никого нет</div>';
+                return;
+            }
+            const rankCls = ['gold', 'silver', 'bronze'];
+            document.getElementById('lb-list').innerHTML = data.map((r, i) => {
+                const isMe = currentUser && r.user_id === currentUser.id;
+                const rc = rankCls[i] || '';
+                return `<div class="lb-row${isMe ? ' me' : ''}">
+      <span class="lb-rank ${rc}">${i + 1}</span>
+      <span class="lb-name">${r.username || 'Anonymous'}</span>
+      <span class="lb-meta">${r.total_rounds}р · ${r.accuracy}%</span>
+      <span class="lb-score">${r.best_score}</span>
+    </div>`;
+            }).join('');
+        }
+        function hideLb() { document.getElementById('lb-veil').classList.remove('on'); }
+
+        // close lb on backdrop click
+        document.getElementById('lb-veil').addEventListener('click', e => {
+            if (e.target === document.getElementById('lb-veil')) hideLb();
+        });
+
+        // ── PATCH SESSION FUNCTIONS FOR SUPABASE ─────────
+        const _origNewSession = newSession;
+        newSession = async function () {
+            if (currentUser) {
+                const s = await sbNewSession();
+                if (!s) { console.error('Failed to create session'); return; }
+                sessions.unshift(s);
+                saveSessions();
+                switchSession(s.id);
+            } else {
+                // local fallback
+                const id = 's' + Date.now();
+                sessions.unshift({ id, name: 'Сессия ' + (sessions.length + 1), score: 0, correct: 0, rounds: 0, streak: 0, bestStreak: 0, errors: 0, streakHistory: [], wS: 0, lS: 0, skips: 3, finished: false, createdAt: Date.now() });
+                saveSessions();
+                switchSession(sessions[0].id);
+            }
+        };
+
+        const _origDeleteSession = deleteSession;
+        deleteSession = function (id, e) {
+            e.stopPropagation();
+            if (currentUser) sbDeleteSession(id);
+            sessions = sessions.filter(s => s.id !== id);
+            saveSessions();
+            if (activeSessionId === id) {
+                activeSessionId = null;
+                if (sessions.length > 0) switchSession(sessions[0].id);
+                else newSession();
+            } else renderSidebar();
+        };
+
+        const _origSyncG = syncGtoSession;
+        syncGtoSession = function (s) {
+            _origSyncG(s);
+            if (currentUser) sbSaveSession(s); // async, fire-and-forget
+        };
+
+        // ── BOOT ─────────────────────────────────────────
+        resize();
+        loadSessions(); // load from localStorage cache first
+
+        // Listen to auth state
+        sb.auth.onAuthStateChange(async (event, session) => {
+            currentUser = session?.user || null;
+            if (currentUser) {
+                hideAuthScreen();
+                setUserBar(currentUser);
+                // Sync sessions from cloud
+                await sbLoadSessions();
+                // Boot game
+                if (sessions.length === 0) {
+                    await newSession();
+                } else {
+                    const initSess = sessionById(activeSessionId) || sessions[0];
+                    activeSessionId = initSess.id;
+                    G.score = initSess.score; G.correct = initSess.correct; G.rounds = initSess.rounds;
+                    G.streak = initSess.streak; G.streakHistory = [...(initSess.streakHistory || [])];
+                    G.wS = initSess.wS || 0; G.lS = initSess.lS || 0; G.skips = initSess.skips != null ? initSess.skips : 3;
+                    G.errors = initSess.errors || 0; G.finished = initSess.finished || false;
+                    renderSidebar(); updateTopBar(G.visible[G.visible.length - 1]); updatePanel();
+                    if (G.finished) showGameOver(); else initRound();
+                }
+            } else {
+                currentUser = null;
+                setUserBar(null);
+                showAuthScreen();
+            }
+        });
+
+        // Check existing session immediately (avoids flicker)
+        (async () => {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) showAuthScreen();
+        })();
+    </script>
+</body>
+
+</html>

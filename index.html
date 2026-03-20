@@ -3002,8 +3002,8 @@
         // ════════════════════════════════════════════════
         //  SUPABASE
         // ════════════════════════════════════════════════
-        const SB_URL = 'https://vrigpkmwmjrvvdtdncqe.supabase.co';
-        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyaWdwa213bWpydnZkdGRuY3FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDQyMTAsImV4cCI6MjA4OTUyMDIxMH0.q-Xk6hXb0xkUPmAwPEj2TW8K0TKO-8jgdDboa2mJ1Ys';
+        const SB_URL = 'https://ikkmoeephnhmtpcdilcx.supabase.co';
+        const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlra21vZWVwaG5obXRwY2RpbGN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5OTE2NjEsImV4cCI6MjA4OTU2NzY2MX0.OK1K4o-T_thIawhmXzcK4b9lWnBMXiurWcUUvsbIRfs';
         const sb = supabase.createClient(SB_URL, SB_KEY);
 
         let currentUser = null;
@@ -3036,7 +3036,10 @@
                     if (error) throw error;
                 } else {
                     if (!name) { errEl.textContent = 'Введи имя'; errEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Зарегистрироваться'; return; }
-                    const { data, error } = await sb.auth.signUp({ email, password: pass });
+                    const { data, error } = await sb.auth.signUp({
+                        email, password: pass,
+                        options: { emailRedirectTo: 'https://callertrader.vercel.app' }
+                    });
                     if (error) throw error;
                     if (data.user) {
                         await sb.from('leaderboard').upsert({ user_id: data.user.id, username: name, best_score: 0, total_rounds: 0, accuracy: 0 }, { onConflict: 'user_id' });
